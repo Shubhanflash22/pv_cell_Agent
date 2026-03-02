@@ -1,0 +1,112 @@
+============================================================
+  SOLAR PV SIZING REPORT
+============================================================
+
+============================================================
+  1. OPTIMAL SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  Targeting maximum production within budget constraints
+  for long-term savings, despite high consumption and low
+  offset fraction due to NEM 3.0 export rates. This
+  prioritizes energy independence over immediate ROI.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   60
+  System size (kW DC):      24.00
+  Target offset:            9%
+  Confidence:               75%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         12,194 kWh
+  Annual consumption used:   141,222 kWh
+  Annual savings:            $4,268
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $72,000
+  Payback period:    16.9 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $25,000
+  Max panels within budget:  60
+  Budget binding?            No
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          400 W
+  System derate:     0.85
+  Electricity rate:  $0.35/kWh
+
+RISKS
+------------------------------------------------------------
+  1. High nighttime load (50.88%) reduces self-consumption value.
+  2. NEM 3.0 low export credits ($0.05–$0.08/kWh) limit savings on excess production.
+  3. High consumption volatility (CV: 0.1252) may affect savings predictability.
+
+============================================================
+  2. RECOMMENDED SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  Staying within the budget of $25,000 and max panels of
+  60, this system balances cost and production. Due to
+  high nighttime load (50.88%), oversizing is avoided, and
+  storage or TOU strategies are suggested.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   60
+  System size (kW DC):      24.00
+  Target offset:            9%
+  Confidence:               80%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         12,194 kWh
+  Annual consumption used:   141,222 kWh
+  Annual savings:            $4,268
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $25,000
+  Payback period:    5.9 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $25,000
+  Max panels within budget:  60
+  Budget binding?            Yes
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          400 W
+  System derate:     0.85
+  Electricity rate:  $0.35/kWh
+
+RISKS
+------------------------------------------------------------
+  1. High nighttime load (50.88%) limits self-consumption benefits.
+  2. NEM 3.0 export rates ($0.05–$0.08/kWh) reduce value of excess production.
+  3. Sunlight volatility (CV: 0.3170) may impact production estimates.
+
+============================================================
+  EVIDENCE
+============================================================
+
+  1. [features] Nighttime load ratio: 50.88%
+  2. [features] Total annual kWh (house + EV): 141,221.52 kWh
+  3. [features] PV installation budget: $25000
+  4. [features] Max panels within budget: 60
+  5. [features] Annual production (at budget): 12,193.80 kWh
+  6. [features] Annual savings (at budget): $4,267.83
+  7. [rag] Average export credit is roughly $0.05–$0.08/kWh under NEM 3.0
+  8. [rag] Residential average electricity rate: $0.33–$0.38/kWh (2024)
+
+============================================================

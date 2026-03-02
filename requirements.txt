@@ -1,0 +1,10 @@
+# Core
+pyyaml>=6.0
+requests>=2.31.0
+
+# OpenAI SDK (for xAI/Grok backend)
+openai>=1.30.0
+
+# RAG (optional – falls back to keyword matching if not installed)
+sentence-transformers>=2.2.0
+numpy>=1.24.0

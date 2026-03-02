@@ -1,0 +1,52 @@
+# ──────────────────────────────────────────────────────────────
+# PV-Sizing Workflow Configuration
+# ──────────────────────────────────────────────────────────────
+
+llm:
+  backend: xai
+  model: grok-3-fast      # model name for the xAI backend
+  host: https://api.x.ai/v1           # xAI API base URL
+  max_tokens: 4096
+  temperature: 0.2
+
+xai:
+  api_key_env: XAI_API_KEY            # env var name holding the API key
+  use_structured_output: false        # strict schema enforcement is slow; grok-3-fast parses JSON natively
+  response_format: json_schema
+  timeout_s: 120                      # fail fast; grok-3-fast is not a reasoning model
+
+# ── Feature engineering defaults ─────────────────────────────
+features:
+  panel_watt_peak: 400                # Wp per panel
+  system_derate: 0.82                 # overall system derate factor
+  cost_per_watt_usd: 3.00            # installed $/W before incentives
+  electricity_rate_usd_kwh: 0.35     # retail rate (San Diego avg)
+  annual_degradation: 0.005          # panel degradation %/yr
+  system_lifetime_years: 25
+
+# ── RAG settings ─────────────────────────────────────────────
+rag:
+  knowledge_dir: data/rag_knowledge   # folder with .txt/.md docs
+  chunk_size: 512
+  chunk_overlap: 64
+  top_k: 5
+  embedding_model: all-MiniLM-L6-v2  # sentence-transformers model
+
+# ── Prompt settings ──────────────────────────────────────────
+prompt:
+  max_prompt_chars: 12000             # hard truncation limit
+  system_prompt: >
+    You are an expert solar-energy analyst specializing in
+    residential photovoltaic system sizing for San Diego, California.
+    You must only use the numeric data provided in the FEATURES block
+    and the passages in the RAG block. Do not invent numbers.
+
+# ── Paths ────────────────────────────────────────────────────
+paths:
+  data_dir: data
+  output_dir: outputs
+  locations_file: data/locations.csv
+
+# ── Budget defaults (can be overridden per location) ─────────
+budget:
+  default_budget_usd: 25000

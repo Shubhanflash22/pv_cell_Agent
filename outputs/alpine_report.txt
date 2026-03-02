@@ -1,0 +1,114 @@
+============================================================
+  SOLAR PV SIZING REPORT
+============================================================
+
+============================================================
+  1. OPTIMAL SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  The optimal scenario targets maximum production within
+  budget-derived panel count from FEATURES, aiming for
+  highest possible offset and long-term ROI despite
+  exceeding the stated budget.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   60
+  System size (kW DC):      24.00
+  Target offset:            8%
+  Confidence:               75%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         12,965 kWh
+  Annual consumption used:   171,524 kWh
+  Annual savings:            $4,538
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $72,000
+  Payback period:    15.9 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $25,000
+  Max panels within budget:  60
+  Budget binding?            No
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          400 W
+  System derate:     0.85
+  Electricity rate:  $0.35/kWh
+
+RISKS
+------------------------------------------------------------
+  1. High consumption volatility (CV: 0.1282) may affect savings projections.
+  2. Significant sunlight volatility (CV: 0.3303) introduces production uncertainty.
+  3. NEM 3.0 export rates reduce value of excess production.
+
+============================================================
+  2. RECOMMENDED SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  The recommended scenario adheres to the budget
+  constraint, selecting the maximum panels within budget
+  (60) to balance offset and financial viability under NEM
+  3.0 conditions.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   60
+  System size (kW DC):      24.00
+  Target offset:            8%
+  Confidence:               80%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         12,965 kWh
+  Annual consumption used:   171,524 kWh
+  Annual savings:            $4,538
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $25,000
+  Payback period:    5.5 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $25,000
+  Max panels within budget:  60
+  Budget binding?            Yes
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          400 W
+  System derate:     0.85
+  Electricity rate:  $0.35/kWh
+
+RISKS
+------------------------------------------------------------
+  1. High consumption volatility (CV: 0.1282) may impact savings consistency.
+  2. Sunlight volatility (CV: 0.3303) poses risk to expected production.
+  3. Low export credits under NEM 3.0 limit value of excess energy.
+
+============================================================
+  EVIDENCE
+============================================================
+
+  1. [features] Total annual kWh (house + EV): 171,524.50 kWh
+  2. [features] PV installation budget: $25000
+  3. [features] Max panels within budget: 60
+  4. [features] Annual production (at budget): 12,964.80 kWh
+  5. [features] Annual savings (at budget): $4,537.68
+  6. [features] Break-even (at budget): 5.51 years
+  7. [rag] Residential average electricity rate: $0.33–$0.38/kWh (2024)
+  8. [rag] Average export credit under NEM 3.0: $0.05–$0.08/kWh
+  9. [rag] Standard residential panel: 380–420 Wp
+  10. [rag] Average installed cost after ITC: $2.00–$2.45/W
+
+============================================================

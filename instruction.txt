@@ -1,0 +1,542 @@
+````md
+# Grok (xAI) Backend Integration Guide
+_Replace the “vanilla LLM” backend in your existing PV-sizing pipeline with Grok while keeping the same data extraction → feature engineering → RAG → prompt builder → inference orchestration._
+
+This guide is written so you can hand it to Claude Opus and have it implement everything end-to-end.
+
+---
+
+## 0) What you already have (baseline architecture)
+
+Your current pipeline is already modular:
+
+- **Config** drives everything (model/backend, file paths, RAG settings, budgets, etc.). :contentReference[oaicite:0]{index=0}  
+- **Feature engineering** computes ~60–75 PV + consumption + risk metrics and formats them into an LLM-ready summary. :contentReference[oaicite:1]{index=1}  
+- **RAG retriever** pulls San Diego-specific PV market knowledge and injects it into the prompt. :contentReference[oaicite:2]{index=2}  
+- **Prompt builder** assembles: feature summary + RAG passages + question/instruction (with truncation). :contentReference[oaicite:3]{index=3}  
+- **Backends** implement a common `generate()` interface (Ollama + vLLM). :contentReference[oaicite:4]{index=4}  
+- **Pipeline.run()** stitches steps together and lazily selects a backend. :contentReference[oaicite:5]{index=5}  
+
+So the cleanest implementation is: **add a third backend** (xAI/Grok) that matches the same interface, plus small config + factory wiring.
+
+---
+
+## 1) xAI API choices you should make up front
+
+xAI supports:
+- **Legacy Chat Completions**: `POST https://api.x.ai/v1/chat/completions` :contentReference[oaicite:6]{index=6}  
+- **New Responses API**: `POST https://api.x.ai/v1/responses` (recommended by xAI for newer features) :contentReference[oaicite:7]{index=7}  
+
+For minimal changes (matching your current “chat” style), start with **Chat Completions** (it maps cleanly to your existing prompt + system prompt). The OpenAI SDK can be pointed at xAI via `base_url="https://api.x.ai/v1"`. :contentReference[oaicite:8]{index=8}  
+
+You also should use **Structured Outputs** so the model returns a parseable JSON recommendation (panel count, confidence, assumptions, etc.) and you can validate it. xAI supports structured outputs across language models. :contentReference[oaicite:9]{index=9}  
+
+Finally: you can later add **function calling** (tools) if you want Grok to request additional computations, but it’s optional for your current pipeline. :contentReference[oaicite:10]{index=10}  
+
+---
+
+## 2) Target behavior: what “better reasoning” means for PV sizing
+
+You don’t want Grok to “invent” a panel count. You want it to:
+1. **Use your computed features as ground truth** (annual kWh, production/panel, budget max panels, payback, nighttime load, etc.). :contentReference[oaicite:11]{index=11}  
+2. **Choose a recommendation policy** (e.g., 50% offset vs 70% offset vs budget-constrained) and justify it.
+3. **Return a structured answer** with:
+   - recommended panel count (integer)
+   - target offset percentage and expected annual production
+   - cape:contentReference[oaicite:12]{index=12}t + fixed install assumptions or RAG-derived ranges)
+   - financial summary (annual savings, payback, ROI/NPV if you already compute)
+   - constraints hit (budget, roof area if you model it, export policy caveats)
+   - key risks and assumptions
+4. **Make the result auditable** by citing specific numbers from the feature block + relevant RAG passages.
+
+This is exactly what structured outputs + JSON validation is for. :contentReference[oaicite:13]{index=13}  
+
+---
+
+## 3) Implementation plan (files to add/modify)
+
+### Add
+- `grok_backend.py` (new backend)
+- `schemas/pv_recommendation_schema.py` (optional but recommended; defines JSON schema + validator)
+- `utils/json_extract.py` (optional helper if you sometimes get wrapped JSON)
+
+### Modify
+- `config.py` + `config.yaml` (support `backend: xai` + API key + model)
+- `pipeline.py` backend factory (`_get_backend()`) to include Grok
+- `06_LLM_Backends.md` / README docs (optional, but good)
+
+Your existing backend interface is described here. :contentReference[oaicite:14]{index=14}  
+
+---
+
+## 4) Configuration changes
+
+### 4.1 Update `WorkflowConfig` (config.py)
+
+Add fields (names are suggestions—keep your style consistent):
+
+- `xai_api_key: str | None`  
+- `xai_base_url: str = "https://api.x.ai/v1"`  
+- `xai_use_structured_output: bool = True`
+- `xai_response_format: str = "json_schema"` (or similar)
+- `x:contentReference[oaicite:15]{index=15} 3600.0` (reasoning models can be slow) :contentReference[oaicite:16]{index=16}  
+
+Also extend validation:
+- allow `backend in {"ollama", "vllm", "xai"}`
+- if backend == xai, require API key (env fallback is ok)
+
+Your config already centralizes LLM selection and validates backend/prompt. :contentReference[oaicite:17]{index=17}  
+
+### 4.2 Update `config.yaml`
+
+Example:
+
+```yaml
+llm:
+  backend: xai
+  model: grok-4-1-fast-reasoning   # example model name from xAI docs :contentReference[oaicite:18]{index=18}
+  host: https://api.x.ai/v1        # keep using cfg.host, or add xai_base_url separately
+  max_tokens: 4096
+  temperature: 0.2
+
+xai:
+  api_key_env: XAI_API_KEY         # prefer env over hardcoding:contentReference[oaicite:19]{index=19}put: true
+  timeout_s: 3600
+````
+
+Note: xAI docs show exporting `XAI_API_KEY` and using `base_url="https://api.x.ai/v1"`. ([xAI][1])
+
+---
+
+## 5) Backend implementation: `grok_backend.py`
+
+### 5.1 Required API basics
+
+* Endpoint: `https://api.x.ai/v1/chat/completions` ([xAI][2])
+* Auth header: `Authorization: Bearer $XAI_API_KEY` ([xAI][2])
+* Request contains `model`, `messages`, optionally `stream`. ([xAI][2])
+
+### 5.2 Decide: OpenAI SDK compatibility vs raw `requests`
+
+xAI explicitly supports OpenAI SDK compatibility by setting `base_url="https://api.x.ai/v1"`. ([xAI][1])
+
+**Recommendation**: implement with OpenAI SDK first (cleaner), and include a fallback to `requests` if the `openai` package isn’t installed (similar to your vLLM backend approach). 
+
+### 5.3 Match your existing backend interface
+
+Your backends expose:
+
+```python
+def generate(prompt: str, system: str = "", max_tokens: int = 2048, temperature: float = 0.2) -> str
+```
+
+Keep the same.
+
+### 5.4 Add structured outputs (strongly recommended)
+
+xAI structured outputs guarantee the response matches your schema. ([xAI][3])
+
+You will:
+
+1. Provide a JSON Schema for the PV recommendation.
+2. Ask Grok to output using that schema (via response format / structured outputs mechanism).
+3. Validate the returned JSON.
+4. If validation fails, do a single repair attempt: feed the invalid JSON + schema back to Grok and ask it to correct.
+
+**Why this matterpipeline can store:
+
+* the raw JSON (machine)
+* a rendered Markdown report (human)
+
+---
+
+## 6) The PV recommendation JSON schema
+
+Create a schema that forces Grok to be explicit and prevents hand-wavy outputs.
+
+### 6.1 Minimal schema (good starting point)
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "recommended_panels": { "type": "integer" },
+    "recommended_kw_dc": { "type": "number" },
+    "target_offset_fraction": { "type": "number" },
+
+    "expected_annual_production_kwh": { "type": "number" },
+    "annual_consumption_kwh_used": { "type": "number" },
+    "expected_annual_savings_usd": { "type": "number" },
+
+    "capex_estimate_usd": { "type": "number" },
+    "payback_years_estimate": { "type": "number" },
+
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "budget_usd": { "type": "number" },
+        "max_panels_within_budget": { "type": "integer" },
+        "budget_binding": { "type": "boolean" }
+      },
+      "required": ["budget_usd", "max_panels_within_budget", "budget_binding"]
+    },
+
+    "assumptions": {
+      "type": "object",
+      "properties": {
+        "panel_watt_peak": { "type": "number" },
+        "system_derate": { "type": "number" },
+        "price_per_kwh": { "type": "number" }
+      },
+      "required": ["panel_watt_peak", "system_derate", "price_per_kwh"]
+    },
+
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "string", "enum": ["features", "rag"] },
+          "quote_or_value": { "type": "string" }
+        },
+        "required": ["source", "quote_or_value"]
+      }
+    },
+
+    "risks": { "type": "array", "items": { "type": "string" } },
+    "confidence": { "type": "number" }
+  },
+  "required": [
+    "recommended_panels",
+    "recommended_kw_dc",
+    "target_offset_fraction",
+    "expected_annual_production_kwh",
+    "annual_consumption_kwh_used",
+    "expected_annual_savings_usd",
+    "capex_estimate_usd",
+    "payback_years_estimate",
+    "constraints",
+    "assumptions",
+    "evidence",
+    "risks",
+    "confidence"
+  ]
+}
+```
+
+This schema lines up with metrics you already compute (panels needed for offsets, budget max panels, payback/ROI, etc.). 
+
+### 6.2 “Evidence” requirement
+
+Make Grok include 5–12 evidence entries, each quoting a specific numeric value from:
+
+* your feature summary (preferred)
+* your RAG excerpt (for things like NEM/export, cost ranges)
+
+This reduces hallucination and makes debugging easy.
+
+---
+
+## 7) Prompt changes (to get Grok to behave)
+
+Your prompt builder already injects:
+
+* feature-engineered summary
+* RAG passages
+* the task instruction 
+
+For Grok, tighten the “Task” section with these constraints:
+
+### 7.1 Add a “hard rules” block
+
+* You must not introduce numeric values not found in **features** or **RAG** unless you label them as assumptions.
+* If budget is binding, the recommendation must not exceed `max_panels_within_b:contentReference[oaicite:30]{index=30}needed_for_offset(70%)` is within budget, prefer it over 50% unless nighttime-load/export policy makes it uneconomical.
+* Always output valid JSON matching the schema.
+
+### 7.2 Include a “decision policy” (explicit)
+
+Example policy:
+
+1. Compute feasible panel counts:
+
+   * `N_50`, `N_70`, `N_100` from features
+   * `N_budget_max` from features
+2. Choose `N*` as:
+
+   * `min(N_70, N_budget_max)` by default
+   * but if payback > re high, choose `min(N_50, N_budget_max)`
+3. If nighttime load ratio is high, explicitly recommend storage/TOU strategy rather than oversizing PV.
+
+You already compute “panels needed for offset” and “panels within budget” and grid dependency. 
+
+### 7.3 Output modes
+
+You have two good options:
+
+**Option A (recommended)**
+Grok returns JSON only (structured output). Then your code renders Markdown from the JSON.
+
+**Option B**
+Grok returns JSON + a human explanation. This is harder to validate and less robust.
+
+Do Option A.
+
+---
+
+## 8) Wiring Grok into `pipeline.py`
+
+In `_get_backend()` add:
+
+```python
+elif cfg.backend == "xai":
+    from grok_backend import GrokBackend
+    self._backend = GrokBackend(
+        api_key=...,
+        base_url=...,
+        model=cfg.model,
+        timeout_s=...,
+        use_structured_output=cfg.xai_use_structured_output,
+    )
+```
+
+Your pipeline already does lazy backend initialization and caches it. 
+
+---
+
+## 9) Whaould do (exact flow)
+
+### 9.1 `generate()` flow
+
+Inputs:
+
+* `prompt` (your assembled mega-prompt)
+* `system` (system prompt)
+* `max_tokens`, `temperature`
+
+Steps:
+
+1. Build `messages`:
+
+   * `{"role":"system","content": system}`
+   * `{"role":"user","content": prompt}`
+2. Call xAI chat completions:
+
+   * `POST /chat/completions` ([xAI][2])
+3. If structured outputs enabled:
+
+   * send schema in the request using xAI structured outputs mechanism ([xAI][3])
+4. Parse response:
+
+   * extract assistant message content (should be JSON)
+5. Validate JSON:
+
+   * if invalid: 1 repair attempt (same endpoint; “fix JSON to match schema exactly”)
+6. Return:
+
+   * either the JSON string
+   * or a preng
+
+### 9.2 Timeouts & retries
+
+xAI docs show using long timeouts (3600s) for reasoning models. ([xAI][1])
+
+Implement:
+
+* client timeout from config (default 3600s)
+* retry on:
+
+  * 429 rate limit
+  * 5xx transient errors
+* exponential backoff with jitter (cap at ~30s)
+
+### 9.3 Logging you want (minimal but sufficient)
+
+Per request:
+
+* model name
+* prompt char length
+* token usage if returned
+* latency
+* whether schema validation passed on first try
+
+---
+
+## 10) Rendering: turn JSON into a human report
+
+Once Grok returns a validated JSON object, add a renderer:
+
+`render_pv_report(reco: dict) -> str` producing Markdown sections:
+
+* Recommendation
+* Key numbers used
+* Financial summary
+* Constraints
+* Risks
+* Evidence list
+
+This keeps the model output deterministic + parseable while still giving you a readable report.
+
+Store both:
+
+* `outputs/<loc>_recommendation.json`
+* `outputs/<loc>_report.md`
+
+Your current batch runner already writes output files per location; extend it to write JSON + MD. 
+
+---
+
+## 11) Optional (but powerful): tool calling for “calculator-grade” consistency
+
+If you want Grok to be *incapable* of arithmetic drift:
+
+* Provide a tool like `compute_recommendation(features_json, policy_params)` that:
+
+  * picks `recommended_panels`
+  * computes derived numbers
+* Let Grok call it (function calling), then have Grok only explain the results.
+
+xAI supports function calling; the model can return a tool call for you to execute locally. ([xAI][4])
+
+This is a bigger change, but it’s the best way to ensure the “number of panels” is always consistent.
+
+---
+
+## 12) Concrete examples
+
+### 12.1 Example xAI curl call (for sanity check)
+
+From xAI docs, chat completions look like: ([xAI][2])
+
+```bash
+curl https://api.x.ai/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $XAI_API_KEY" \
+  -m 3600 \
+  -d '{
+    "messages": [:contentReference[oaicite:42]{index=42}m","content":"You are an expert power grid data analyst..."},
+      {"role":"user","content":"...your assembled prompt..."}
+    ],
+    "model":"grok-4-1-fast-reasoning",
+    "stream": false,
+    "temperature": 0.2
+  }'
+```
+
+### 12.2 Example OpenAI SDK (xAI-compatible) call
+
+xAI docs show OpenAI SDK compatibility using `base_url="https://api.x.ai/v1"`. ([xAI][1])
+
+```python
+from openai import OpenAI
+client = OpenAI(api_key=os.getenv("XAI_API_KEY"), base_url="https://api.x.ai/v1")
+
+resp = client.chat.completions.create(
+    model="grok-4-1-fast-reasoning",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": final_prompt},
+    ],
+    temperature=0.2,
+    max_tokens=4096,
+)
+text = resp.choices[0].message.content
+```
+
+---
+
+## 13) Testing checklist (do this before batch runs)
+
+### Unit tests
+
+* `test_schema_validation_passes_on_good_json`
+* `test_schema_validation_fails_on_missing_field`
+* `test_backend_retries_on_429`
+* `test_backend_raises_on_auth_error`
+
+### Integration tests (single location)
+
+* run `workflow.py` once with `backend=xai`
+* compare with your existing Ollama output:
+
+  * panel count should be within expected bounds (e.g., <= budget max)
+  * evidence list should cite feature values like annual kWh, production per panel, budget max panels 
+
+### Batch test
+
+* run 2–3 locations first, then full 30.
+
+Your batch runner already supports looping locations and saving outputs; extend it to save JSON + MD too. 
+
+---
+
+## 14) Common failure modes (and how to harden)
+
+1. **Model returns prose instead of JSON**
+
+   * Fix: structured outputs + schema; and add “output must be JSON only” constraint. ([xAI][3])
+
+2. **JSON is valid but inconsistent with your features**
+
+   * Fix: require `evidence[]` entries quoting the exact feature values used
+   * Optional: add a post-check that compares:
+
+     * recommended_panels <= max_panels_within_budget
+     * annual_consumption_kwh_used equals the feature field you provide
+     * if mismatch: repair call
+
+3. **Rate limits (429)**
+
+   * Fix: retry + backoff + optional queueing
+
+4. **Latency**
+
+   * Fix: use smaller Grok model variant if available, or reduce max tokens and rely on rendering locally
+
+---
+
+## 15) Minimal diff summary (what Claude should implement)
+
+1. **Config**
+
+   * Add `backend: xai` support + key + b
+
+2. **Backend**
+
+   * Implement `GrokBackend.generate()` with OpenAI SDK compatibility to `https://api.x.ai/v1/chat/completions`. ([xAI][2])Add structured output schema support. ([xAI][3])
+
+3. **Pipeline**
+
+   * Add xAI backend option in `_get_backend()`. 
+
+4. **Output**
+
+   * Save `recommendation.json` and optionally `report.md` (rendered). 
+
+5. **Prompt**
+
+   * Strengthen “hard rules” and “decision policy” in the prompt builder (no hallucinated numbers; cite evidence). 
+
+---
+
+## 16) Notes on keeping PV sizing “correct”
+
+Your feature engineering already encodes the PV sizing math and assumptions (panel Wp, derate, costs, payback, budget max panels). 
+
+So the most robust approach is:
+
+* let code compute everything deterministic
+* let Grok choose a policy and explain, while being forced to cite the computed figures
+
+That gives you “reasoning well” without letting the model become a calculator.
+
+---
+
+```
+::contentReference[oaicite:56]{index=56}
+:contentReference[oaicite:57]{index=57}:contentReference[oaicite:58]{index=58}:contentReference[oaicite:59]{index=59}:contentReference[oaicite:60]{index=60}:contentReference[oaicite:61]{index=61}
+```
+
+[1]: https://docs.x.ai/developers/quickstart "Getting Started | xAI"
+[2]: https://docs.x.ai/developers/model-capabilities/legacy/chat-completions "Chat Completions | xAI"
+[3]: https://docs.x.ai/developers/model-capabilities/text/structured-outputs "Structured Outputs | xAI"
+[4]: https://docs.x.ai/developers/tools/function-calling "Function Calling | xAI"
