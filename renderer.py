@@ -146,3 +146,52 @@ def render_pv_report(reco: Dict[str, Any]) -> str:
     lines.append(_SEP)
 
     return "\n".join(lines)
+
+
+def format_recommendation_summary(reco: Dict[str, Any]) -> str:
+    """Return a short Markdown summary of the recommended scenario.
+
+    Suitable for display in a chatbot or compact UI.
+    """
+    rec = reco.get("recommended", {})
+    opt = reco.get("optimal", {})
+    constraints = rec.get("constraints", {})
+
+    lines = [
+        "## Recommended System",
+        "",
+        f"- **Panels:** {rec.get('panels', 'N/A')}",
+        f"- **System Size:** {rec.get('kw_dc', 0):.2f} kW DC",
+        f"- **Target Offset:** {rec.get('target_offset_fraction', 0):.0%}",
+        f"- **Annual Production:** {rec.get('expected_annual_production_kwh', 0):,.0f} kWh",
+        f"- **Annual Savings:** ${rec.get('expected_annual_savings_usd', 0):,.0f}",
+        f"- **CAPEX Estimate:** ${rec.get('capex_estimate_usd', 0):,.0f}",
+        f"- **Payback Period:** {rec.get('payback_years_estimate', 0):.1f} years",
+        f"- **Budget Binding:** {'Yes' if constraints.get('budget_binding') else 'No'}",
+        f"- **Confidence:** {rec.get('confidence', 0):.0%}",
+        "",
+        f"**Rationale:** {rec.get('rationale', 'N/A')}",
+        "",
+        "---",
+        "",
+        "## Optimal System (for reference)",
+        "",
+        f"- **Panels:** {opt.get('panels', 'N/A')}",
+        f"- **System Size:** {opt.get('kw_dc', 0):.2f} kW DC",
+        f"- **Annual Savings:** ${opt.get('expected_annual_savings_usd', 0):,.0f}",
+        f"- **Payback Period:** {opt.get('payback_years_estimate', 0):.1f} years",
+        "",
+        f"**Rationale:** {opt.get('rationale', 'N/A')}",
+    ]
+
+    risks = rec.get("risks", [])
+    if risks:
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("## Key Risks")
+        lines.append("")
+        for i, r in enumerate(risks, 1):
+            lines.append(f"{i}. {r}")
+
+    return "\n".join(lines)

@@ -61,6 +61,7 @@ def extract_all_data(
     location_name: str,
     output_root: str | Path = "data/generated",
     years_back: int = 5,
+    household_overrides: dict | None = None,
 ) -> dict[str, Path]:
     """Generate weather, household, and electricity CSVs for one location.
 
@@ -70,6 +71,9 @@ def extract_all_data(
     location_name  : human-readable name (used for sub-directory).
     output_root    : root directory for generated data.
     years_back     : years of weather history to fetch.
+    household_overrides : optional dict with keys ``num_people``,
+        ``num_daytime_occupants``, ``num_evs`` forwarded to the household
+        generator.
 
     Returns
     -------
@@ -92,7 +96,13 @@ def extract_all_data(
 
     # 2. Household
     logger.info("  [2/3] Generating household data …")
-    household_df = generate_household_data(lat, lon)
+    hh_kwargs = {}
+    if household_overrides:
+        for key in ("num_people", "num_daytime_occupants", "num_evs"):
+            val = household_overrides.get(key)
+            if val is not None:
+                hh_kwargs[key] = val
+    household_df = generate_household_data(lat, lon, **hh_kwargs)
     household_df.to_csv(household_path, index=False)
     logger.info("        → %s  (%d rows)", household_path, len(household_df))
 

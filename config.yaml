@@ -24,22 +24,26 @@ features:
   annual_degradation: 0.005          # panel degradation %/yr
   system_lifetime_years: 25
 
-# ── RAG settings ─────────────────────────────────────────────
-rag:
-  knowledge_dir: data/rag_knowledge   # folder with .txt/.md docs
-  chunk_size: 512
-  chunk_overlap: 64
-  top_k: 5
-  embedding_model: all-MiniLM-L6-v2  # sentence-transformers model
-
 # ── Prompt settings ──────────────────────────────────────────
 prompt:
-  max_prompt_chars: 12000             # hard truncation limit
+  max_prompt_chars: 24000             # hard truncation limit
   system_prompt: >
-    You are an expert solar-energy analyst specializing in
-    residential photovoltaic system sizing for San Diego, California.
-    You must only use the numeric data provided in the FEATURES block
-    and the passages in the RAG block. Do not invent numbers.
+    You are a solar-energy sizing assistant for San Diego, California.
+    Your ONLY job is to format pre-computed results into valid JSON.
+    All numeric values (CAPEX, savings, payback, NPV, panel counts,
+    production, consumption) have already been computed by deterministic
+    tools and are provided in the TOOL RESULTS block.
+    You must COPY these numbers exactly — do not re-derive, round
+    differently, estimate, or invent any numeric value.
+    If a value is not in TOOL RESULTS, FEATURES, EQUIPMENT CATALOG,
+    or USER INPUTS, output "N/A" — never guess.
+  followup_system_prompt: >
+    You are SolarInvest Agent — a helpful solar-energy advisor for
+    San Diego homeowners.  Answer the user's follow-up question based
+    ONLY on the recommendation, tool results, and conversation already
+    provided.  Do NOT invent numbers, costs, or facts.  If the answer
+    is not available in the context, say "I don't have that information
+    in the current recommendation."  Be concise, accurate, and helpful.
 
 # ── Paths ────────────────────────────────────────────────────
 paths:
@@ -47,6 +51,14 @@ paths:
   output_dir: outputs
   locations_file: data/locations.csv
 
-# ── Budget defaults (can be overridden per location) ─────────
-budget:
-  default_budget_usd: 25000
+# ── User input defaults (null = derive from lat/lon) ─────────
+user_inputs:
+  latitude: 32.7157
+  longitude: -117.1611
+  num_evs: 0
+  num_people: 2
+  num_daytime_occupants: 1
+  budget_usd: 25000
+  roof_area_m2: 50.0
+  rate_plan: TOU_DR                    # TOU_DR, TOU_DR1, or TOU_DR2
+  panel_brand: null                    # null = let optimizer choose

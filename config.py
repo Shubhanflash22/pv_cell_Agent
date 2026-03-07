@@ -49,22 +49,21 @@ class FeatureConfig:
 
 
 @dataclass
-class RAGConfig:
-    knowledge_dir: str = "data/rag_knowledge"
-    chunk_size: int = 512
-    chunk_overlap: int = 64
-    top_k: int = 5
-    embedding_model: str = "all-MiniLM-L6-v2"
-
-
-@dataclass
 class PromptConfig:
     max_prompt_chars: int = 12000
     system_prompt: str = (
         "You are an expert solar-energy analyst specializing in "
         "residential photovoltaic system sizing for San Diego, California. "
         "You must only use the numeric data provided in the FEATURES block "
-        "and the passages in the RAG block. Do not invent numbers."
+        "and the TOOL RESULTS block. Do not invent numbers."
+    )
+    followup_system_prompt: str = (
+        "You are SolarInvest Agent — a helpful solar-energy advisor for "
+        "San Diego homeowners. Answer the user's follow-up question based "
+        "ONLY on the recommendation, tool results, and conversation already "
+        "provided. Do NOT invent numbers, costs, or facts. If the answer "
+        "is not available in the context, say \"I don't have that information "
+        "in the current recommendation.\" Be concise, accurate, and helpful."
     )
 
 
@@ -75,9 +74,26 @@ class PathsConfig:
     locations_file: str = "data/locations.csv"
 
 
+VALID_RATE_PLANS = {"TOU_DR", "TOU_DR1", "TOU_DR2"}
+
+VALID_PANEL_BRANDS = {
+    "REC Group", "JA Solar", "Trina Solar", "Canadian Solar",
+    "Silfab Solar", "Jinko Solar", "LONGi Solar", "Maxeon Solar",
+    "Aiko Solar",
+}
+
+
 @dataclass
-class BudgetConfig:
-    default_budget_usd: float = 25000.0
+class UserInputsConfig:
+    latitude: float = 32.7157
+    longitude: float = -117.1611
+    num_evs: int = 0
+    num_people: int = 2
+    num_daytime_occupants: int = 1
+    budget_usd: float = 25000.0
+    roof_area_m2: float = 50.0
+    rate_plan: str = "TOU_DR"
+    panel_brand: Optional[str] = None
 
 
 # ── Top-level config ─────────────────────────────────────────
@@ -86,10 +102,9 @@ class WorkflowConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
     xai: XAIConfig = field(default_factory=XAIConfig)
     features: FeatureConfig = field(default_factory=FeatureConfig)
-    rag: RAGConfig = field(default_factory=RAGConfig)
     prompt: PromptConfig = field(default_factory=PromptConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
-    budget: BudgetConfig = field(default_factory=BudgetConfig)
+    user_inputs: UserInputsConfig = field(default_factory=UserInputsConfig)
 
     # ── Convenience accessors ────────────────────────────────
     @property
@@ -184,9 +199,8 @@ def load_config(path: str | Path | None = None) -> WorkflowConfig:
         llm=_dict_to_dataclass(LLMConfig, raw.get("llm")),
         xai=_dict_to_dataclass(XAIConfig, raw.get("xai")),
         features=_dict_to_dataclass(FeatureConfig, raw.get("features")),
-        rag=_dict_to_dataclass(RAGConfig, raw.get("rag")),
         prompt=_dict_to_dataclass(PromptConfig, raw.get("prompt")),
         paths=_dict_to_dataclass(PathsConfig, raw.get("paths")),
-        budget=_dict_to_dataclass(BudgetConfig, raw.get("budget")),
+        user_inputs=_dict_to_dataclass(UserInputsConfig, raw.get("user_inputs")),
     )
     return cfg

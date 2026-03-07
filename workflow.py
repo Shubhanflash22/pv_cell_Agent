@@ -180,7 +180,7 @@ def main() -> None:
 
             features = extract_all_features(
                 df_elec, df_weather, df_household,
-                pv_budget=cfg.budget.default_budget_usd,
+                pv_budget=cfg.user_inputs.budget_usd,
                 price_per_kwh=cfg.features.electricity_rate_usd_kwh,
             )
             feature_text = format_for_llm(features)

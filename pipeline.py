@@ -1,7 +1,6 @@
 """
 PV-sizing pipeline -- stitches together data extraction -> feature
-engineering -> RAG -> prompt building -> LLM inference -> validation
--> rendering.
+engineering -> prompt building -> LLM inference -> validation -> rendering.
 
 Uses the xAI/Grok backend for inference.
 """
@@ -10,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -19,7 +18,7 @@ from backends.base import BaseBackend
 from data_extractor import extract_all_data
 from feature_engineering import extract_all_features, format_for_llm
 from prompt_builder import build_prompt, get_system_prompt
-from rag_retriever import RAGRetriever
+from pv_tools import run_all_tools
 from renderer import render_pv_report
 from schemas.pv_recommendation_schema import validate_recommendation
 from utils.json_extract import extract_json
@@ -33,7 +32,6 @@ class Pipeline:
     def __init__(self, cfg: WorkflowConfig) -> None:
         self.cfg = cfg
         self._backend: Optional[BaseBackend] = None
-        self._rag: Optional[RAGRetriever] = None
 
     # -- Lazy initialisers ------------------------------------
 
@@ -59,14 +57,48 @@ class Pipeline:
         )
         return self._backend
 
-    def _get_rag(self) -> RAGRetriever:
-        """Lazily create, build, and cache the RAG retriever."""
-        if self._rag is not None:
-            return self._rag
+    # -- Follow-up chat ---------------------------------------
 
-        self._rag = RAGRetriever(self.cfg.rag)
-        self._rag.build()
-        return self._rag
+    def chat_followup(
+        self,
+        conversation: List[Dict[str, str]],
+        user_question: str,
+        followup_system_prompt: str = "",
+    ) -> str:
+        """Answer a follow-up question using the full conversation context.
+
+        Parameters
+        ----------
+        conversation : list of dict
+            Previous messages as ``[{"role": ..., "content": ...}, ...]``.
+        user_question : str
+            The new question from the user.
+        followup_system_prompt : str
+            System prompt for the follow-up persona.
+
+        Returns
+        -------
+        str
+            The assistant's free-form text response.
+        """
+        backend = self._get_backend()
+
+        messages: List[Dict[str, str]] = []
+        if followup_system_prompt:
+            messages.append({"role": "system", "content": followup_system_prompt})
+
+        messages.extend(conversation)
+        messages.append({"role": "user", "content": user_question})
+
+        logger.info(
+            "chat_followup: %d context messages + 1 new question (%d chars)",
+            len(conversation), len(user_question),
+        )
+        return backend.chat(
+            messages,
+            max_tokens=self.cfg.max_tokens,
+            temperature=self.cfg.temperature,
+        )
 
     # -- Main entry point -------------------------------------
 
@@ -79,6 +111,9 @@ class Pipeline:
         save: bool = True,
         output_dir: Optional[str] = None,
         skip_extraction: bool = False,
+        household_overrides: Optional[Dict[str, Any]] = None,
+        budget_usd: Optional[float] = None,
+        user_inputs: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Run the full pipeline for a single location.
 
@@ -95,6 +130,14 @@ class Pipeline:
         skip_extraction : bool
             If True, assume CSVs already exist under ``data/generated/<name>/``
             and skip the weather / household data extraction step.
+        household_overrides : dict, optional
+            Keys ``num_people``, ``num_daytime_occupants``, ``num_evs``
+            forwarded to the data extraction layer.
+        budget_usd : float, optional
+            Override the default PV budget from config.
+        user_inputs : dict, optional
+            Full user inputs dict injected into the LLM prompt so the
+            model can see roof_area_m2, rate_plan, panel_brand, etc.
 
         Returns
         -------
@@ -132,7 +175,10 @@ class Pipeline:
                     logger.error(msg)
                     return result
         else:
-            csv_paths = extract_all_data(lat, lon, name)
+            csv_paths = extract_all_data(
+                lat, lon, name,
+                household_overrides=household_overrides,
+            )
 
         # 1. Load CSVs
         logger.info("Step 1: Loading generated CSVs")
@@ -142,28 +188,43 @@ class Pipeline:
 
         # 2. Feature engineering
         logger.info("Step 2: Feature engineering for %s", name)
+        effective_budget = budget_usd or self.cfg.user_inputs.budget_usd
         features = extract_all_features(
             df_elec,
             df_weather,
             df_household,
-            pv_budget=self.cfg.budget.default_budget_usd,
+            pv_budget=effective_budget,
             price_per_kwh=self.cfg.features.electricity_rate_usd_kwh,
         )
         feature_text = format_for_llm(features)
         result["feature_text"] = feature_text
 
-        # 3. RAG retrieval
-        logger.info("Step 3: RAG retrieval")
-        rag = self._get_rag()
-        rag_query = (
-            f"solar PV sizing San Diego {name} "
-            f"net metering NEM export rate cost per watt residential"
-        )
-        rag_block = rag.retrieve_block(rag_query)
+        # 2b. Run PV tool computations (load profile, tariffs, dispatch, economics)
+        tool_results = None
+        if user_inputs:
+            logger.info("Step 2b: Running PV tool computations")
+            try:
+                tool_results = run_all_tools(
+                    latitude=lat,
+                    longitude=lon,
+                    num_evs=user_inputs.get("num_evs", 0),
+                    num_people=user_inputs.get("num_people", 3),
+                    num_daytime_occupants=user_inputs.get("num_daytime_occupants", 1),
+                    budget_usd=effective_budget,
+                    roof_area_m2=user_inputs.get("roof_area_m2", 50.0),
+                    rate_plan=user_inputs.get("rate_plan", "TOU_DR"),
+                    panel_brand=user_inputs.get("panel_brand"),
+                )
+            except Exception as exc:
+                logger.warning("PV tools failed (non-fatal): %s", exc)
 
-        # 4. Prompt building
-        logger.info("Step 4: Prompt building")
-        prompt = build_prompt(feature_text, rag_block, self.cfg.prompt)
+        # 3. Prompt building
+        logger.info("Step 3: Prompt building")
+        prompt = build_prompt(
+            feature_text, self.cfg.prompt,
+            user_inputs=user_inputs,
+            tool_results=tool_results,
+        )
         system = get_system_prompt(self.cfg.prompt)
 
         # 5. LLM inference

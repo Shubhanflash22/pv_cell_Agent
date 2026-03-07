@@ -1,0 +1,277 @@
+/* ═══════════════════════════════════════════════════════════════
+   SolarInvest – iPhone Weather-inspired dynamic background
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── CSS custom properties (set by JS based on time-of-day) ── */
+:root {
+    --sky-top: #1a2a6c;
+    --sky-mid: #b21f1f;
+    --sky-bottom: #fdbb2d;
+    --sun-opacity: 1;
+    --sun-top: 30%;
+    --cloud-opacity: 0.7;
+    --glass-bg: rgba(255, 255, 255, 0.12);
+    --glass-border: rgba(255, 255, 255, 0.25);
+    --glass-text: #ffffff;
+    --glass-shadow: rgba(0, 0, 0, 0.2);
+    --input-bg: rgba(255, 255, 255, 0.15);
+    --input-text: #ffffff;
+    --accent: #f7b733;
+}
+
+/* ── Animated sky background ─────────────────────────────────── */
+.gradio-container {
+    position: relative;
+    min-height: 100vh;
+    background: linear-gradient(
+        170deg,
+        var(--sky-top) 0%,
+        var(--sky-mid) 50%,
+        var(--sky-bottom) 100%
+    );
+    background-size: 200% 200%;
+    animation: skyShift 25s ease-in-out infinite alternate;
+    overflow-x: hidden;
+    color: var(--glass-text) !important;
+    transition: background 2s ease;
+}
+
+@keyframes skyShift {
+    0%   { background-position: 0% 20%; }
+    50%  { background-position: 50% 60%; }
+    100% { background-position: 100% 40%; }
+}
+
+/* ── Sun / moon orb ──────────────────────────────────────────── */
+#solarinvest-sky-layer .sun-orb {
+    position: fixed;
+    right: 10%;
+    top: var(--sun-top);
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff6d5 0%, #f7b733 60%, transparent 100%);
+    box-shadow: 0 0 60px 20px rgba(247, 183, 51, 0.35),
+                0 0 120px 60px rgba(247, 183, 51, 0.15);
+    opacity: var(--sun-opacity);
+    pointer-events: none;
+    z-index: 0;
+    animation: sunPulse 6s ease-in-out infinite alternate;
+    transition: top 2s ease, opacity 2s ease;
+}
+
+@keyframes sunPulse {
+    0%   { transform: scale(1);   box-shadow: 0 0 60px 20px rgba(247,183,51,0.35); }
+    100% { transform: scale(1.08); box-shadow: 0 0 80px 30px rgba(247,183,51,0.45); }
+}
+
+/* Night: moon variant */
+.gradio-container[data-time="night"] #solarinvest-sky-layer .sun-orb {
+    background: radial-gradient(circle, #e8e8f0 0%, #c0c0d4 60%, transparent 100%);
+    box-shadow: 0 0 40px 15px rgba(200, 200, 220, 0.25);
+    animation: none;
+}
+
+/* ── Floating cloud layers ───────────────────────────────────── */
+#solarinvest-sky-layer .cloud {
+    position: fixed;
+    background: rgba(255, 255, 255, var(--cloud-opacity));
+    border-radius: 50px;
+    filter: blur(6px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+#solarinvest-sky-layer .cloud-1 {
+    width: 280px;
+    height: 50px;
+    top: 12%;
+    left: -300px;
+    animation: cloudDrift1 50s linear infinite;
+}
+#solarinvest-sky-layer .cloud-2 {
+    width: 200px;
+    height: 35px;
+    top: 22%;
+    left: -200px;
+    opacity: 0.5;
+    animation: cloudDrift2 70s linear infinite;
+    animation-delay: -20s;
+}
+#solarinvest-sky-layer .cloud-3 {
+    width: 320px;
+    height: 45px;
+    top: 8%;
+    left: -320px;
+    opacity: 0.4;
+    animation: cloudDrift3 90s linear infinite;
+    animation-delay: -40s;
+}
+
+@keyframes cloudDrift1 {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(calc(100vw + 600px)); }
+}
+@keyframes cloudDrift2 {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(calc(100vw + 500px)); }
+}
+@keyframes cloudDrift3 {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(calc(100vw + 700px)); }
+}
+
+/* ── Glassmorphism panels ────────────────────────────────────── */
+#solarinvest-input-form,
+#solarinvest-chat-panel {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 8px 32px var(--glass-shadow) !important;
+    padding: 24px !important;
+    transition: background 0.6s ease, border 0.6s ease;
+}
+
+/* ── Title area ──────────────────────────────────────────────── */
+#solarinvest-title {
+    text-align: center;
+    padding: 20px 10px 10px;
+}
+#solarinvest-title h1 {
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+    color: #ffffff !important;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    margin-bottom: 2px !important;
+}
+#solarinvest-title p {
+    color: rgba(255,255,255,0.8) !important;
+    font-size: 1rem !important;
+}
+
+/* ── Input form styling ──────────────────────────────────────── */
+#solarinvest-input-form label,
+#solarinvest-input-form .gr-input-label {
+    color: rgba(255,255,255,0.9) !important;
+    font-weight: 500;
+}
+
+#solarinvest-input-form input,
+#solarinvest-input-form select,
+#solarinvest-input-form textarea,
+#solarinvest-input-form .wrap {
+    background: var(--input-bg) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    color: var(--input-text) !important;
+    border-radius: 10px !important;
+}
+
+#solarinvest-input-form input:focus,
+#solarinvest-input-form select:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px rgba(247, 183, 51, 0.3) !important;
+}
+
+#solarinvest-input-form .section-label {
+    color: var(--accent) !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.75rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+#solarinvest-recommend-btn {
+    background: linear-gradient(135deg, #f7b733 0%, #fc4a1a 100%) !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 12px 28px !important;
+    font-size: 1.05rem !important;
+    box-shadow: 0 4px 20px rgba(252, 74, 26, 0.3) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+#solarinvest-recommend-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 24px rgba(252, 74, 26, 0.45) !important;
+}
+
+#solarinvest-newchat-btn,
+#solarinvest-download-btn,
+#solarinvest-newchat-nodownload-btn {
+    background: rgba(255,255,255,0.15) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+}
+#solarinvest-newchat-btn:hover,
+#solarinvest-download-btn:hover,
+#solarinvest-newchat-nodownload-btn:hover {
+    background: rgba(255,255,255,0.25) !important;
+}
+
+/* ── Chatbot bubble styling ──────────────────────────────────── */
+#solarinvest-chatbot .message {
+    border-radius: 16px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+}
+
+#solarinvest-chatbot {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* ── Follow-up input ─────────────────────────────────────────── */
+#solarinvest-followup-input input {
+    background: rgba(255,255,255,0.12) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    color: #fff !important;
+    border-radius: 12px !important;
+}
+
+#solarinvest-send-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+}
+
+/* ── Full report accordion ───────────────────────────────────── */
+#solarinvest-chat-panel .accordion {
+    background: rgba(255,255,255,0.08) !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    border-radius: 12px !important;
+}
+
+/* ── Markdown headings in chat ───────────────────────────────── */
+#solarinvest-chatbot h2,
+#solarinvest-chatbot h3 {
+    color: var(--accent) !important;
+}
+
+/* ── New-chat options row ────────────────────────────────────── */
+#solarinvest-newchat-options {
+    background: rgba(0,0,0,0.15) !important;
+    border-radius: 12px !important;
+    padding: 10px !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    #solarinvest-sky-layer .sun-orb {
+        width: 60px;
+        height: 60px;
+    }
+    #solarinvest-sky-layer .cloud { display: none; }
+}
+
+/* ── Hide default Gradio footer ──────────────────────────────── */
+footer { opacity: 0.3; }

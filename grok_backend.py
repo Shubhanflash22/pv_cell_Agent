@@ -137,6 +137,117 @@ class GrokBackend(BaseBackend):
         logger.warning("Schema validation failed (%d errors) – attempting repair", len(errors))
         return self._repair(raw_text, errors, messages, max_tokens, temperature)
 
+    def chat(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int = 2048,
+        temperature: float = 0.3,
+    ) -> str:
+        """Multi-turn chat without structured-output enforcement.
+
+        Used for follow-up Q&A where the response is free-form text,
+        not a JSON schema.
+        """
+        logger.info(
+            "GrokBackend.chat  model=%s  messages=%d  total_chars=%d",
+            self.model, len(messages),
+            sum(len(m.get("content", "")) for m in messages),
+        )
+        t0 = time.time()
+
+        raw_text = self._call_chat_with_retry(messages, max_tokens, temperature)
+
+        latency = time.time() - t0
+        logger.info("GrokBackend.chat response  chars=%d  latency=%.1fs", len(raw_text), latency)
+        return raw_text
+
+    def _call_chat_with_retry(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int,
+        temperature: float,
+    ) -> str:
+        """Call xAI for plain chat (no response_format) with retry."""
+        last_exc: Optional[Exception] = None
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                if self._use_sdk:
+                    return self._call_chat_sdk(messages, max_tokens, temperature)
+                else:
+                    return self._call_chat_requests(messages, max_tokens, temperature)
+            except Exception as exc:
+                last_exc = exc
+                status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+                if status and int(status) == 401:
+                    raise
+                if attempt < _MAX_RETRIES:
+                    wait = _backoff(attempt)
+                    logger.warning(
+                        "xAI chat call failed (attempt %d/%d): %s – retrying in %.1fs",
+                        attempt + 1, _MAX_RETRIES + 1, exc, wait,
+                    )
+                    time.sleep(wait)
+                else:
+                    raise
+        raise last_exc  # type: ignore[misc]
+
+    def _call_chat_sdk(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int,
+        temperature: float,
+    ) -> str:
+        resp = self._client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        text = resp.choices[0].message.content or ""
+        usage = getattr(resp, "usage", None)
+        if usage:
+            logger.info(
+                "Chat token usage: prompt=%s completion=%s total=%s",
+                getattr(usage, "prompt_tokens", "?"),
+                getattr(usage, "completion_tokens", "?"),
+                getattr(usage, "total_tokens", "?"),
+            )
+        return text
+
+    def _call_chat_requests(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int,
+        temperature: float,
+    ) -> str:
+        import requests as _requests
+
+        url = f"{self.base_url}/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+        payload: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }
+        resp = _requests.post(url, json=payload, headers=headers, timeout=self.timeout_s)
+        resp.raise_for_status()
+        data = resp.json()
+        text = data["choices"][0]["message"]["content"]
+        usage = data.get("usage")
+        if usage:
+            logger.info(
+                "Chat token usage: prompt=%s completion=%s total=%s",
+                usage.get("prompt_tokens", "?"),
+                usage.get("completion_tokens", "?"),
+                usage.get("total_tokens", "?"),
+            )
+        return text
+
     # ── Internal helpers ─────────────────────────────────────
 
     def _build_messages(self, prompt: str, system: str) -> List[Dict[str, str]]:

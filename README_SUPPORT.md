@@ -1,9 +1,11 @@
-# PV-Sizing Agentic Workflow — Complete Guide
+# SolarInvest — Complete Setup & Run Guide
 
-> **What this project does:** Given a location (name + lat/lon), it fetches real
-> weather data, generates realistic household electricity data from EIA regional
-> load, engineers 60+ PV-relevant features, feeds them to an LLM (xAI/Grok),
-> and produces a dual-scenario (Optimal + Recommended) solar panel sizing report.
+> **What this project does:** Given a homeowner's location, household size,
+> budget, and roof area, it generates realistic electricity load profiles from
+> EIA data, computes 60+ PV-relevant features, runs deterministic sizing &
+> economics tools, and feeds everything to an LLM (xAI / Grok) to produce a
+> dual-scenario (Optimal + Recommended) solar panel sizing report -- all via a
+> Gradio chatbot with an animated weather-style UI.
 
 ---
 
@@ -12,19 +14,16 @@
 1. [Project Structure](#1-project-structure)
 2. [Prerequisites & Installation](#2-prerequisites--installation)
 3. [API Key Setup](#3-api-key-setup)
-4. [Configuration Reference (`config.yaml`)](#4-configuration-reference-configyaml)
-5. [End-to-End Workflow (How It All Fits Together)](#5-end-to-end-workflow)
-6. [Running the Pipeline](#6-running-the-pipeline)
-7. [Where to Edit Prompts](#7-where-to-edit-prompts)
-8. [Where to Edit the Output Schema](#8-where-to-edit-the-output-schema)
-9. [Where to Edit Feature Engineering](#9-where-to-edit-feature-engineering)
-10. [Where to Edit the Report Renderer](#10-where-to-edit-the-report-renderer)
-11. [Adding / Removing Locations](#11-adding--removing-locations)
-12. [RAG Knowledge Base](#12-rag-knowledge-base)
-13. [Data Sources & External APIs](#13-data-sources--external-apis)
-14. [Generated File Outputs](#14-generated-file-outputs)
-15. [Troubleshooting](#15-troubleshooting)
-16. [Architecture Diagram](#16-architecture-diagram)
+4. [Running the Chatbot (Primary Interface)](#4-running-the-chatbot-primary-interface)
+5. [Running the Batch Pipeline (CLI)](#5-running-the-batch-pipeline-cli)
+6. [Configuration Reference](#6-configuration-reference-configyaml)
+7. [End-to-End Workflow](#7-end-to-end-workflow)
+8. [Chatbot Features](#8-chatbot-features)
+9. [Data Sources & External APIs](#9-data-sources--external-apis)
+10. [Where to Edit Prompts](#10-where-to-edit-prompts)
+11. [Where to Edit the Output Schema](#11-where-to-edit-the-output-schema)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Quick Reference Card](#13-quick-reference-card)
 
 ---
 
@@ -32,49 +31,46 @@
 
 ```
 285_Agentic_Workflow/
-├── config.yaml                     # All tuneable settings (model, rates, paths)
+├── config.yaml                     # All tuneable settings
 ├── config.py                       # Loads config.yaml → Python dataclasses
-├── workflow.py                     # CLI entry point (batch runner)
-├── pipeline.py                     # 8-step pipeline (orchestrator)
+├── chatbot.py                      # Gradio chatbot (primary UI)
+├── workflow.py                     # CLI batch runner (alternative)
+├── pipeline.py                     # 8-step pipeline orchestrator
+├── pv_tools.py                     # Deterministic PV sizing & economics tools
 ├── data_extractor.py               # Generates 3 CSVs per location
-├── feature_engineering.py          # 60+ features → extract_all_features() + format_for_llm()
-├── prompt_builder.py               # Assembles feature text + RAG + rules → final prompt
+├── feature_engineering.py          # 60+ features → formatted text
+├── prompt_builder.py               # Assembles final LLM prompt
 ├── grok_backend.py                 # xAI/Grok LLM client (OpenAI SDK)
-├── rag_retriever.py                # Vector/keyword RAG over knowledge docs
 ├── renderer.py                     # JSON → plain-text report
 ├── requirements.txt                # Python dependencies
 │
+├── static/
+│   ├── solarinvest.css             # Dynamic background & glassmorphism styles
+│   └── solarinvest.js              # Time-of-day sky engine
+│
 ├── backends/
-│   ├── __init__.py
 │   └── base.py                     # Abstract base class for LLM backends
 │
 ├── schemas/
-│   ├── __init__.py
 │   └── pv_recommendation_schema.py # JSON schema + validator + repair prompt
 │
 ├── utils/
-│   ├── __init__.py
 │   └── json_extract.py             # Robust JSON extraction from LLM output
 │
 ├── data_extraction/
-│   ├── __init__.py
-│   ├── household_generator.py      # EIA regional MW → per-household kW (9 factors)
+│   ├── household_generator.py      # EIA regional MW → per-household kW
 │   ├── weather_fetcher.py          # Open-Meteo API → weekly weather CSV
-│   └── San_Diego_Load_EIA_Fixed.csv # Source EIA data (44,305 hourly rows)
+│   └── San_Diego_Load_EIA_Fixed.csv # Source EIA load data (44,305 rows)
 │
 ├── data/
-│   ├── locations.csv               # 30 San Diego locations (name, lat, lon)
-│   ├── rag_knowledge/
-│   │   └── san_diego_pv_market.md  # Market knowledge for RAG retrieval
+│   ├── locations.csv               # 30 San Diego locations
+│   ├── San_Diego_Load_EIA_Fixed.csv # EIA hourly load data
+│   ├── tou_dr_daily_2021_2025.csv  # SDG&E TOU-DR rate schedule
+│   ├── tou_dr1_daily_2021_2025.csv # SDG&E TOU-DR1 rate schedule
+│   ├── tou_dr2_daily_2021_2025.csv # SDG&E TOU-DR2 rate schedule
 │   └── generated/                  # Auto-created: per-location CSV outputs
-│       └── alpine/
-│           ├── weather_data.csv
-│           ├── household_data.csv
-│           └── electricity_data.csv
 │
 └── outputs/                        # Final reports + feature summaries
-    ├── alpine_report.txt
-    └── alpine_features.txt
 ```
 
 ---
@@ -83,738 +79,396 @@
 
 ### System Requirements
 
-- **Python 3.10+** (tested on 3.14)
+- **Python 3.10+** (tested on 3.13 / 3.14)
 - **Internet connection** for the Open-Meteo weather API and xAI API calls
 - **macOS / Linux** (Windows works but paths may need adjustment)
 
 ### Step-by-Step Install
 
 ```bash
-# 1. Clone / navigate to the project
+# 1. Navigate to the project directory
 cd /path/to/285_Agentic_Workflow
 
 # 2. Create a virtual environment
 python3 -m venv .venv
-source .venv/bin/activate
 
-# 3. Install dependencies
+# 3. Activate it
+source .venv/bin/activate          # macOS / Linux
+# .venv\Scripts\activate           # Windows
+
+# 4. Install all dependencies
 pip install -r requirements.txt
-
-# 4. (Optional) Install pandas + numpy if not already present
-pip install pandas numpy
 ```
 
-### `requirements.txt` Contents
+### What Gets Installed
 
-| Package               | Purpose                                           |
-|-----------------------|---------------------------------------------------|
-| `pyyaml>=6.0`        | Parse `config.yaml`                               |
-| `requests>=2.31.0`   | HTTP calls (Open-Meteo API, xAI fallback)         |
-| `openai>=1.30.0`     | OpenAI SDK used to talk to xAI/Grok               |
-| `sentence-transformers>=2.2.0` | Embedding model for RAG (optional fallback to keyword) |
-| `numpy>=1.24.0`      | Numerical operations in feature engineering       |
-| `pandas`             | DataFrame operations throughout the pipeline      |
+| Package | Purpose |
+|---------|---------|
+| `pyyaml>=6.0` | Parse `config.yaml` |
+| `requests>=2.31.0` | HTTP calls (Open-Meteo, xAI fallback) |
+| `pandas>=2.0.0` | DataFrames throughout the pipeline |
+| `openai>=1.30.0` | OpenAI SDK to talk to xAI / Grok |
+| `numpy>=1.24.0` | Numerical operations |
+| `gradio>=4.0.0` | Chatbot web UI |
 
 ---
 
 ## 3. API Key Setup
 
-### xAI (Grok) API Key — **Required for full runs**
+### Get your xAI API key
 
-The pipeline uses **xAI's Grok** model via the OpenAI-compatible API.
+1. Go to [https://console.x.ai/](https://console.x.ai/) and create an account
+2. Generate an API key
 
-1. **Get your key** from [https://console.x.ai/](https://console.x.ai/)
-2. **Export it as an environment variable** before running:
+### Set the key as an environment variable
 
 ```bash
 export XAI_API_KEY="xai-YOUR-KEY-HERE"
 ```
 
-3. **To make it permanent**, add it to your shell profile:
+### Make it permanent (optional)
 
 ```bash
-# ~/.zshrc  or  ~/.bashrc
+# For zsh (macOS default):
 echo 'export XAI_API_KEY="xai-YOUR-KEY-HERE"' >> ~/.zshrc
 source ~/.zshrc
+
+# For bash:
+echo 'export XAI_API_KEY="xai-YOUR-KEY-HERE"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
-4. **Verify it's set:**
+### Verify it's set
 
 ```bash
 echo $XAI_API_KEY
+# Should print: xai-YOUR-KEY-HERE
 ```
 
-### Where the key is read
+### Where the key is read in the code
 
 - `config.yaml` → `xai.api_key_env: XAI_API_KEY` (the *name* of the env var)
-- `config.py` → `WorkflowConfig.xai_api_key` property reads `os.environ.get("XAI_API_KEY")`
+- `config.py` → `WorkflowConfig.xai_api_key` reads `os.environ.get("XAI_API_KEY")`
 - `grok_backend.py` → receives the key and passes it to the OpenAI SDK client
-
-### Changing the env var name
-
-If you want to use a different env var name (e.g. `GROK_KEY`):
-
-```yaml
-# config.yaml
-xai:
-  api_key_env: GROK_KEY    # ← change this
-```
-
-Then export accordingly: `export GROK_KEY="xai-..."`.
-
-### Dry-run mode (no API key needed)
-
-```bash
-python workflow.py --dry-run
-```
-
-This runs data extraction + feature engineering only — no LLM call is made,
-so no API key is required. Useful for testing data pipelines.
 
 ---
 
-## 4. Configuration Reference (`config.yaml`)
+## 4. Running the Chatbot (Primary Interface)
 
-Every tuneable parameter lives in `config.yaml`. Here's the full reference:
+This is the recommended way to interact with the system.
+
+### Start the chatbot
+
+```bash
+# 1. Activate your virtual environment
+source .venv/bin/activate
+
+# 2. Set your API key (if not already persistent)
+export XAI_API_KEY="xai-YOUR-KEY-HERE"
+
+# 3. Launch the chatbot
+python chatbot.py
+```
+
+### What happens
+
+- Gradio starts a local web server (typically at `http://127.0.0.1:7860`)
+- Your default browser opens automatically
+- You see the SolarInvest input form with an animated sky background
+
+### Using the chatbot
+
+**Step 1 — Fill in the input form:**
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Latitude | Decimal degrees (32.0 – 34.0 for San Diego) | 32.7157 |
+| Longitude | Decimal degrees (-118.0 – -116.0) | -117.1611 |
+| Total Occupants | People living in the household | 2 |
+| Daytime Occupants | People home 9 AM – 5 PM | 1 |
+| Electric Vehicles | Number of EVs (0 – 10) | 0 |
+| Budget, pre-ITC | Maximum out-of-pocket spend in USD | 25000 |
+| South-Facing Roof Area | Unshaded roof area in m² | 50.0 |
+| SDG&E Rate Plan | TOU_DR, TOU_DR1, or TOU_DR2 | TOU_DR |
+| Preferred Panel Brand | Pick a brand or "Auto" | Auto |
+
+**Step 2 — Click "Get Recommendation":**
+
+- The pipeline runs (30–60 seconds)
+- A chat interface appears with your inputs and the recommendation
+
+**Step 3 — Ask follow-up questions:**
+
+- Type in the follow-up box: "Why is the payback 8 years?", "What if I increase my budget?", etc.
+- The SolarInvest Agent answers using the full conversation context
+
+**Step 4 — New Chat:**
+
+- Click "New Chat" to get two options:
+  - **Download Chat & Start New** — saves the chat as a `.md` file, then resets
+  - **Start New Chat** — resets immediately without downloading
+
+---
+
+## 5. Running the Batch Pipeline (CLI)
+
+For processing multiple locations without the chatbot UI.
+
+### Quick start
+
+```bash
+source .venv/bin/activate
+export XAI_API_KEY="xai-YOUR-KEY-HERE"
+
+# Run ALL 30 San Diego locations
+python workflow.py
+
+# Run a single location
+python workflow.py --location Alpine
+
+# Dry-run: data extraction + features only (no LLM, no API key needed)
+python workflow.py --dry-run
+
+# Reuse existing CSVs + run LLM
+python workflow.py --skip-extraction --location Alpine
+```
+
+### CLI flags
+
+| Flag | Description |
+|------|-------------|
+| `--config PATH` | Path to config YAML (default: `config.yaml`) |
+| `--location NAME` | Run only this location |
+| `--output-dir DIR` | Override the output directory |
+| `--dry-run` | Feature engineering only, skip LLM |
+| `--skip-extraction` | Reuse existing CSVs under `data/generated/` |
+
+---
+
+## 6. Configuration Reference (`config.yaml`)
 
 ```yaml
-# ── LLM Settings ─────────────────────────────────────────────
 llm:
-  backend: xai                         # Only "xai" is supported
-  model: grok-4-1-fast-reasoning       # Model name (change to any xAI model)
-  host: https://api.x.ai/v1           # xAI API base URL
-  max_tokens: 4096                     # Max response tokens
-  temperature: 0.2                     # Lower = more deterministic
+  backend: xai
+  model: grok-3-fast                 # xAI model name
+  host: https://api.x.ai/v1
+  max_tokens: 4096
+  temperature: 0.2
 
 xai:
-  api_key_env: XAI_API_KEY             # Env var name holding the API key
-  use_structured_output: true          # Sends JSON schema to model
-  response_format: json_schema         # Response format type
-  timeout_s: 3600                      # Timeout (reasoning models can be slow)
+  api_key_env: XAI_API_KEY
+  use_structured_output: false
+  response_format: json_schema
+  timeout_s: 120
 
-# ── Feature Engineering Defaults ─────────────────────────────
 features:
-  panel_watt_peak: 400                 # Watts per panel
-  system_derate: 0.82                  # System efficiency loss factor
-  cost_per_watt_usd: 3.00             # Installed cost per watt
-  electricity_rate_usd_kwh: 0.35      # Retail electricity rate
-  annual_degradation: 0.005            # Panel degradation per year
-  system_lifetime_years: 25            # System lifespan
+  panel_watt_peak: 400
+  system_derate: 0.82
+  cost_per_watt_usd: 3.00
+  electricity_rate_usd_kwh: 0.35
+  annual_degradation: 0.005
+  system_lifetime_years: 25
 
-# ── RAG Settings ─────────────────────────────────────────────
-rag:
-  knowledge_dir: data/rag_knowledge    # Folder with .txt/.md knowledge docs
-  chunk_size: 512                      # Characters per chunk
-  chunk_overlap: 64                    # Overlap between chunks
-  top_k: 5                            # Number of passages to retrieve
-  embedding_model: all-MiniLM-L6-v2   # Sentence-transformers model
-
-# ── Prompt Settings ──────────────────────────────────────────
 prompt:
-  max_prompt_chars: 12000              # Hard truncation limit for full prompt
-  system_prompt: >                     # System message sent to the LLM
-    You are an expert solar-energy analyst specializing in
-    residential photovoltaic system sizing for San Diego, California.
-    You must only use the numeric data provided in the FEATURES block
-    and the passages in the RAG block. Do not invent numbers.
+  max_prompt_chars: 24000
+  system_prompt: >                   # Initial recommendation persona
+    You are a solar-energy sizing assistant...
+  followup_system_prompt: >          # Follow-up Q&A persona
+    You are SolarInvest Agent...
 
-# ── File Paths ───────────────────────────────────────────────
 paths:
   data_dir: data
-  output_dir: outputs                  # Where reports are saved
-  locations_file: data/locations.csv   # Input locations CSV
+  output_dir: outputs
+  locations_file: data/locations.csv
 
-# ── Budget ───────────────────────────────────────────────────
-budget:
-  default_budget_usd: 25000            # Default budget per household
+user_inputs:                         # Default values for chatbot fields
+  latitude: 32.7157
+  longitude: -117.1611
+  num_evs: 0
+  num_people: 2
+  num_daytime_occupants: 1
+  budget_usd: 25000
+  roof_area_m2: 50.0
+  rate_plan: TOU_DR
+  panel_brand: null
 ```
 
 ### Key parameters to tune
 
 | Parameter | What it does | Typical range |
 |-----------|-------------|---------------|
-| `llm.model` | Which Grok model to use | `grok-4-1-fast-reasoning` |
+| `llm.model` | Which Grok model to use | `grok-3-fast`, `grok-4-1-fast-reasoning` |
 | `llm.temperature` | Creativity vs determinism | `0.0` – `0.5` |
 | `llm.max_tokens` | Response length limit | `2048` – `8192` |
+| `xai.timeout_s` | API timeout | `120` (fast) or `3600` (reasoning) |
 | `features.electricity_rate_usd_kwh` | SDG&E retail rate | `0.31` – `0.38` |
-| `budget.default_budget_usd` | Default PV budget | `10000` – `50000` |
-| `prompt.max_prompt_chars` | Prompt truncation limit | `8000` – `20000` |
+| `user_inputs.budget_usd` | Default PV budget | `10000` – `50000` |
 
 ---
 
-## 5. End-to-End Workflow
+## 7. End-to-End Workflow
 
-Here is exactly what happens when you run `python workflow.py`:
+When you click "Get Recommendation" in the chatbot (or run `workflow.py`):
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. LOAD LOCATIONS                                          │
-│     Read data/locations.csv → list of (name, lat, lon)     │
+│  Step 0: DATA EXTRACTION  (data_extractor.py)               │
+│  a. Fetch 5 years of weather from Open-Meteo API            │
+│  b. Generate per-household hourly kW from EIA data           │
+│  c. Aggregate hourly → weekly electricity                    │
 └──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼  (for each location)
-┌─────────────────────────────────────────────────────────────┐
-│  2. DATA EXTRACTION  (data_extractor.py)                    │
-│     a. Fetch 5 years of weather from Open-Meteo API        │
-│        → data/generated/<name>/weather_data.csv             │
-│     b. Generate per-household hourly kW from EIA data      │
-│        (9 variability factors, SHA-256 seeded)              │
-│        → data/generated/<name>/household_data.csv           │
-│     c. Aggregate hourly → weekly electricity                │
-│        → data/generated/<name>/electricity_data.csv         │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  3. FEATURE ENGINEERING  (feature_engineering.py)            │
-│     Read the 3 CSVs → compute 60+ features across:         │
-│       • Electricity (load distribution, seasonal, growth)   │
-│       • Weather/Solar (irradiance, efficiency, alignment)   │
-│       • Household (normalised kWh, cost, financial)         │
-│       • Cross-dataset (panels needed, payback, grid dep.)   │
-│       • Risk & sensitivity (price/irradiance scenarios)     │
-│       • EV & budget analysis                                │
-│     Output: formatted text block                            │
-│        → outputs/<name>_features.txt                        │
+│  Step 2: FEATURE ENGINEERING  (feature_engineering.py)       │
+│  Read 3 CSVs → compute 60+ features                         │
 └──────────────────────┬──────────────────────────────────────┘
-                       │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  4. RAG RETRIEVAL  (rag_retriever.py)                       │
-│     Query "solar PV sizing San Diego <name> ..."            │
-│     → top-5 passages from data/rag_knowledge/*.md           │
+│  Step 2b: PV TOOL COMPUTATIONS  (pv_tools.py)               │
+│  - 8760-hour load profile from EIA data                      │
+│  - Hourly TOU tariffs from rate plan CSVs                    │
+│  - Irradiance from Open-Meteo                                │
+│  - Panel/battery selection from equipment catalog            │
+│  - System sizing (panels for 70%, 100%, budget, roof)        │
+│  - Dispatch simulation (battery charge/discharge)            │
+│  - 10-year NPV financial model                               │
+│  All results are pre-computed deterministically.             │
 └──────────────────────┬──────────────────────────────────────┘
-                       │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  5. PROMPT ASSEMBLY  (prompt_builder.py)                    │
-│     Combine:                                                │
-│       [Feature Text] + [RAG Passages] + [Hard Rules]        │
-│       + [Decision Policy] + [JSON Schema] + [Task]          │
-│     Truncate if > max_prompt_chars                          │
+│  Step 3: PROMPT ASSEMBLY  (prompt_builder.py)                │
+│  Combine: Features + Equipment Catalog + User Inputs         │
+│         + Tool Results + Hard Rules + Decision Policy         │
+│         + JSON Schema + Task                                 │
 └──────────────────────┬──────────────────────────────────────┘
-                       │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  6. LLM INFERENCE  (grok_backend.py)                        │
-│     Send prompt to xAI/Grok with structured output schema   │
-│     Retry up to 3x on transient errors (429, 5xx)          │
-│     If response fails validation → 1 repair attempt         │
+│  Step 4: LLM INFERENCE  (grok_backend.py)                    │
+│  Send prompt to xAI/Grok. Retry on transient errors.         │
+│  If validation fails → 1 repair attempt.                     │
 └──────────────────────┬──────────────────────────────────────┘
-                       │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  7. PARSE + VALIDATE  (json_extract.py + schema validator)  │
-│     Extract JSON from response text                         │
-│     Validate against PV_RECOMMENDATION_SCHEMA               │
-│     Check: optimal{}, recommended{}, evidence[]             │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│  8. RENDER + SAVE  (renderer.py)                            │
-│     JSON → plain-text report with both scenarios            │
-│     → outputs/<name>_report.txt                             │
-│     → outputs/<name>_features.txt                           │
+│  Step 5: PARSE + VALIDATE + RENDER                           │
+│  Extract JSON → validate against schema → render report      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Dry-run mode
+---
 
-With `--dry-run`, **only steps 1–3 execute** (load locations, extract data,
-engineer features). No LLM call, no API key needed. The feature text is
-printed to stdout and saved to `outputs/<name>_features.txt`.
+## 8. Chatbot Features
+
+### Dynamic Background (iPhone Weather Style)
+
+The chatbot has an animated background inspired by the iPhone Weather app:
+
+- **Time-of-day sky:** Gradient shifts between dawn, day, dusk, and night
+  based on your local clock
+- **Floating clouds:** 3 animated cloud layers drift across the screen
+- **Sun / moon orb:** A glowing circle changes position and style by time
+- **Glassmorphism:** All panels use translucent frosted-glass styling
+  with `backdrop-filter: blur()`
+
+The sky updates every 60 seconds. Styling is in `static/solarinvest.css` and
+the time logic is in `static/solarinvest.js`.
+
+### Two-Step UI Flow
+
+1. **Step 1 — Input form:** On load, you see only the input fields
+2. **Step 2 — Chat:** After clicking "Get Recommendation", the form hides and
+   the chat interface appears with your recommendation
+
+### Follow-Up Q&A
+
+After the initial recommendation, you can ask follow-up questions in the text
+box below the chat. The SolarInvest Agent uses the full conversation context
+and an anti-hallucination system prompt to answer.
+
+### New Chat with Download
+
+- Click "New Chat" → choose to download the chat as `.md` or skip
+- Download saves a timestamped markdown file with the full conversation
+- Reset returns to the input form with a clean slate
 
 ---
 
-## 6. Running the Pipeline
+## 9. Data Sources & External APIs
 
-### Quick Start
+### Open-Meteo Weather API (free, no key)
 
-```bash
-# Activate the venv
-source .venv/bin/activate
+- **Endpoint:** `https://archive-api.open-meteo.com/v1/archive`
+- **Data:** 5 years of daily temperature, irradiance, cloud cover
+- **Used by:** `data_extraction/weather_fetcher.py`, `pv_tools.py`
 
-# Set your API key
-export XAI_API_KEY="xai-YOUR-KEY-HERE"
-```
+### EIA Regional Load Data (bundled)
 
-### Available Commands
+- **File:** `data/San_Diego_Load_EIA_Fixed.csv`
+- **Source:** U.S. Energy Information Administration
+- **Coverage:** Hourly MW load for SDG&E territory, 2021–2026
 
-```bash
-# Run ALL 30 locations (full pipeline, calls LLM for each)
-python workflow.py
+### SDG&E TOU Rate Schedules (bundled)
 
-# Run a single location
-python workflow.py --location Alpine
+- `data/tou_dr_daily_2021_2025.csv` — TOU-DR plan
+- `data/tou_dr1_daily_2021_2025.csv` — TOU-DR1 plan
+- `data/tou_dr2_daily_2021_2025.csv` — TOU-DR2 plan
 
-# Run a single location (case-insensitive matching)
-python workflow.py --location "La Jolla"
+### xAI / Grok API
 
-# Dry-run: data extraction + features only (no LLM, no API key needed)
-python workflow.py --dry-run
-
-# Dry-run for one location
-python workflow.py --dry-run --location Alpine
-
-# Skip data extraction (reuse existing CSVs in data/generated/)
-python workflow.py --skip-extraction --location Alpine
-
-# Dry-run + skip extraction (fastest: just re-compute features from existing CSVs)
-python workflow.py --dry-run --skip-extraction --location Alpine
-
-# Custom output directory
-python workflow.py --output-dir my_results/
-
-# Custom config file
-python workflow.py --config my_config.yaml
-```
-
-### CLI Flags Reference
-
-| Flag | Description |
-|------|-------------|
-| `--config PATH` | Path to config YAML (default: `config.yaml`) |
-| `--location NAME` | Run only this location (matches by name) |
-| `--output-dir DIR` | Override the output directory |
-| `--dry-run` | Feature engineering only, skip LLM inference |
-| `--skip-extraction` | Reuse existing CSVs under `data/generated/` |
-
-### Combining Flags
-
-- `--dry-run` + `--skip-extraction` → fastest iteration, reads existing CSVs, prints features
-- `--skip-extraction` (without `--dry-run`) → reuses CSVs but still calls LLM
-- Neither flag → full pipeline from scratch (fetches weather, generates household data, calls LLM)
+- **Base URL:** `https://api.x.ai/v1`
+- **Protocol:** OpenAI-compatible chat completions
+- **Retry:** 3 retries with exponential backoff on 429/5xx
 
 ---
 
-## 7. Where to Edit Prompts
+## 10. Where to Edit Prompts
 
-### 7a. System Prompt
+### System prompt (initial recommendation)
 
 **File:** `config.yaml` → `prompt.system_prompt`
 
-```yaml
-prompt:
-  system_prompt: >
-    You are an expert solar-energy analyst specializing in
-    residential photovoltaic system sizing for San Diego, California.
-    You must only use the numeric data provided in the FEATURES block
-    and the passages in the RAG block. Do not invent numbers.
-```
+### Follow-up Q&A persona
 
-This is the "role" instruction sent as the system message. Edit this to change
-the LLM's persona or constraints.
+**File:** `config.yaml` → `prompt.followup_system_prompt`
 
-### 7b. Hard Rules (constraints the LLM must follow)
+### Hard rules (anti-hallucination constraints)
 
-**File:** `prompt_builder.py` → `HARD_RULES` constant (around line 18)
+**File:** `prompt_builder.py` → `HARD_RULES` constant
 
-This block contains 7 numbered rules that tell the LLM:
-- Don't invent numbers
-- Produce exactly TWO scenarios (optimal + recommended)
-- When to target 70% vs 100% offset
-- Output must be valid JSON matching the schema
-- Include 5–12 evidence entries
+### Decision policy (sizing algorithm)
 
-**To add a new rule**, append to the `HARD_RULES` string:
+**File:** `prompt_builder.py` → `DECISION_POLICY` constant
 
-```python
-HARD_RULES = """\
-### HARD RULES (you must obey all of these)
-...
-8. Your new rule here.
-"""
-```
+### Equipment catalog
 
-### 7c. Decision Policy (the algorithm the LLM follows)
+**File:** `pv_tools.py` → `SOLAR_PANEL_CATALOG` and `BATTERY_CATALOG`
 
-**File:** `prompt_builder.py` → `DECISION_POLICY` constant (around line 50)
-
-This tells the LLM exactly how to calculate the optimal and recommended
-panel counts using variables from the feature block (N_50, N_70, N_100,
-N_budget, N_roof). Edit this to change the sizing logic.
-
-### 7d. Task Question (the actual question asked)
-
-**File:** `prompt_builder.py` → inside `build_prompt()` function (around line 114)
-
-```python
-if question is None:
-    question = (
-        "Based on the FEATURES and RAG data above, produce TWO solar panel "
-        "sizing scenarios for this household:\n"
-        "  1. \"optimal\"     – the technically best system (max offset / ROI).\n"
-        "  2. \"recommended\" – the budget-aware, practical system to purchase.\n"
-        "Follow the DECISION POLICY for each scenario. "
-        "Output ONLY valid JSON matching the schema — two named objects plus shared evidence."
-    )
-```
-
-### 7e. Full Prompt Assembly Order
-
-The final prompt sent to the LLM is assembled in this exact order:
-
-```
-1. Feature text block      (from format_for_llm())
-2. Empty line
-3. RAG passages block      (from rag_retriever)
-4. Empty line
-5. HARD_RULES block
-6. DECISION_POLICY block
-7. JSON SCHEMA block
-8. Empty line
-9. TASK question
-```
-
-If the total exceeds `max_prompt_chars` (default 12,000), the RAG block
-is truncated first, then hard-truncation from the start.
+The catalog is auto-formatted into the prompt by
+`prompt_builder.py` → `_build_equipment_catalog_block()`.
 
 ---
 
-## 8. Where to Edit the Output Schema
+## 11. Where to Edit the Output Schema
 
 **File:** `schemas/pv_recommendation_schema.py`
 
-### Current Schema Structure
+The schema expects:
 
 ```
 {
-  "optimal": {          ← scenario object
-    "panels": int,
-    "kw_dc": float,
-    "target_offset_fraction": float,
-    "expected_annual_production_kwh": float,
-    "annual_consumption_kwh_used": float,
-    "expected_annual_savings_usd": float,
-    "capex_estimate_usd": float,
-    "payback_years_estimate": float,
-    "rationale": string,
-    "constraints": { "budget_usd", "max_panels_within_budget", "budget_binding" },
-    "assumptions": { "panel_watt_peak", "system_derate", "price_per_kwh" },
-    "risks": [string, ...],
-    "confidence": float (0–1)
-  },
+  "optimal": { panels, kw_dc, savings, capex, payback, rationale, ... },
   "recommended": { ... same structure ... },
-  "evidence": [
-    { "source": "features"|"rag", "quote_or_value": string },
-    ...
-  ]
+  "evidence": [ { "source": "features"|"tool_results"|"catalog", "quote_or_value": "..." } ]
 }
 ```
 
-### Adding a new field to scenarios
+### Validation and repair
 
-1. Add it to `_SCENARIO_SCHEMA["properties"]` in `pv_recommendation_schema.py`
-2. If required, add the field name to `_SCENARIO_SCHEMA["required"]`
-3. Update `renderer.py` → `_render_scenario()` to display it
-4. Update `prompt_builder.py` → `DECISION_POLICY` to instruct the LLM to populate it
-
-### Validation
-
-The `validate_recommendation()` function checks:
-- All required top-level keys exist (`optimal`, `recommended`, `evidence`)
-- All required fields exist in each scenario
-- Types match (int, float, string, etc.)
-- `confidence` is between 0 and 1
-- `target_offset_fraction` is reasonable (0–2)
-- Evidence entries have valid `source` values
-
-### Repair mechanism
-
-If the LLM's response fails validation, `grok_backend.py` automatically:
-1. Calls `build_repair_prompt()` with the errors
-2. Sends a repair request to the LLM
-3. Validates the repaired response
-4. Returns best-effort JSON even if repair fails
+If the LLM's JSON fails validation, `grok_backend.py` automatically
+sends one repair request to fix it.
 
 ---
 
-## 9. Where to Edit Feature Engineering
-
-**File:** `feature_engineering.py`
-
-### Feature Categories
-
-| Section | Line Range (approx) | Features |
-|---------|---------------------|----------|
-| Constants | Top of file | PV_PANEL_WATT_PEAK, costs, rates |
-| 1. Electricity - Load Distribution | ~60-90 | peak, p95, min, variance, std, CV, IQR |
-| 1b. Electricity - Seasonal | ~95-130 | seasonal index, peak-to-trough, winter/summer ratio, trend slope |
-| 1c. Electricity - Growth | ~135-165 | YoY growth, moving avg trend, change points |
-| 1d. Electricity - Peak Load | ~170-200 | max spike, weeks above threshold, high-load streaks |
-| 2. Weather/Solar | ~205-280 | irradiance, PSH, seasonal index, temp correlation, cloudy frequency |
-| 2b. Alignment | ~285-320 | consumption-irradiance correlation, lag correlations |
-| 3. Household | ~325-400 | annual kWh, kWh/occupant, kWh/sqm, costs, 5yr projection |
-| 4. Cross-dataset | ~405-510 | production/panel, panels needed, break-even, NPV, IRR, ROI, grid dependency |
-| 5. Risk & Sensitivity | ~515-560 | price sensitivity, irradiance sensitivity, volatility scores |
-| 6. EV & Budget | ~565-600 | EV charging, panels within budget |
-| 7. Master Extraction | ~605+ | `extract_all_features()`, `format_for_llm()` |
-
-### Adding a new feature
-
-1. Write a function that takes a DataFrame and returns a value
-2. Add it to the appropriate category dict in `extract_all_features()`
-3. Add a display line in `format_for_llm()`
-
-### Changing constants
-
-Edit the constants at the top of `feature_engineering.py`:
-
-```python
-PV_PANEL_WATT_PEAK = 400       # Change panel wattage
-PV_EFFICIENCY_LOSS = 0.80      # Change system derate
-PV_PANEL_COST = 350            # Change cost per panel
-PV_INSTALL_FIXED_COST = 4_000  # Change installation cost
-ELECTRICITY_PRICE_PER_KWH = 0.31  # Change electricity rate
-```
-
-> **Note:** `config.yaml` also has `features.electricity_rate_usd_kwh`. The
-> config value is passed to `extract_all_features()` via the `price_per_kwh`
-> parameter and overrides the module-level constant.
-
----
-
-## 10. Where to Edit the Report Renderer
-
-**File:** `renderer.py`
-
-The `render_pv_report()` function takes the validated JSON recommendation
-dict and produces a plain-text `.txt` report.
-
-### Structure
-
-```
-SOLAR PV SIZING REPORT
-========================
-
-1. OPTIMAL SYSTEM
-  - Rationale
-  - System Sizing (panels, kW DC, offset, confidence)
-  - Production & Savings
-  - Financials (CAPEX, payback)
-  - Constraints
-  - Assumptions
-  - Risks
-
-2. RECOMMENDED SYSTEM
-  - (same sections)
-
-EVIDENCE
-  - Numbered list of feature/RAG citations
-```
-
-### Customising the report
-
-- Edit `_render_scenario()` to change what fields are displayed
-- Edit `render_pv_report()` to add headers/footers
-- The report is plain text (`.txt`), not Markdown
-
----
-
-## 11. Adding / Removing Locations
-
-**File:** `data/locations.csv`
-
-### Format
-
-```csv
-name,latitude,longitude
-San Diego,32.7157,-117.1611
-Alpine,32.8351,-116.7664
-```
-
-- **Columns:** `name`, `latitude`, `longitude` — all three required
-- **No other columns** — consumption and solar data are computed automatically
-- One row per location
-
-### Adding a new location
-
-Just add a row:
-
-```csv
-Temecula,33.4936,-117.1484
-```
-
-### Running only new locations
-
-```bash
-python workflow.py --location Temecula
-```
-
-### Current locations (30 San Diego areas)
-
-San Diego, Chula Vista, Oceanside, Escondido, Carlsbad, Vista, San Marcos,
-Encinitas, National City, Imperial Beach, El Cajon, La Mesa, Lemon Grove,
-Santee, Poway, Solana Beach, Alpine, Bonita, Fallbrook, Jamul, Coronado,
-Del Mar, Rancho Santa Fe, Camp Pendleton North, Eucalyptus Hills, La Jolla,
-Mira Mesa, Lakeside, Casa de Oro-Mount Helix, Bostonia.
-
----
-
-## 12. RAG Knowledge Base
-
-**Directory:** `data/rag_knowledge/`
-
-### How it works
-
-1. At pipeline start, all `.txt` and `.md` files in this directory are loaded
-2. Each file is split into overlapping chunks (512 chars, 64 char overlap)
-3. Chunks are embedded using `all-MiniLM-L6-v2` (sentence-transformers)
-4. For each location, the top-5 most relevant chunks are retrieved
-5. Retrieved passages are injected into the prompt as `=== RAG PASSAGES ===`
-
-### Current knowledge file
-
-`san_diego_pv_market.md` contains:
-- NEM 3.0 policy details (export credits, self-consumption value)
-- San Diego solar resource data (peak sun hours by area)
-- Installed cost ranges ($2.80–$3.50/W)
-- Panel specs (400 Wp standard)
-- SDG&E electricity rates ($0.33–$0.38/kWh, TOU rates)
-- System sizing guidance (70% offset sweet spot)
-- Payback period benchmarks
-- Degradation rates
-
-### Adding more knowledge
-
-Create any `.txt` or `.md` file in `data/rag_knowledge/`:
-
-```bash
-# Example: add battery storage knowledge
-cat > data/rag_knowledge/battery_storage.md << 'EOF'
-# Battery Storage for San Diego Solar
-
-Tesla Powerwall 3: 13.5 kWh, ~$9,500 installed
-Enphase IQ Battery 5P: 5 kWh per unit, stackable
-...
-EOF
-```
-
-The RAG system will automatically pick up new files on the next run.
-
-### Fallback
-
-If `sentence-transformers` is not installed, the RAG system falls back to
-simple keyword overlap scoring (works but less accurate).
-
----
-
-## 13. Data Sources & External APIs
-
-### 13a. Open-Meteo Weather API (free, no key needed)
-
-**File:** `data_extraction/weather_fetcher.py`
-
-- **Endpoint:** `https://archive-api.open-meteo.com/v1/archive`
-- **Data fetched:** Last 5 years of daily weather
-  - Temperature max/min
-  - Shortwave radiation (solar irradiance)
-  - Cloud cover (hourly, then aggregated)
-- **Aggregation:** Daily → weekly (max, min, avg for each variable)
-- **Rate limit:** Free tier, ~10,000 requests/day
-- **No API key required**
-
-### 13b. EIA Regional Load Data (bundled)
-
-**File:** `data_extraction/San_Diego_Load_EIA_Fixed.csv`
-
-- **Source:** U.S. Energy Information Administration (EIA)
-- **Coverage:** Hourly regional MW load for SDG&E territory
-- **Date range:** 2021-01-01 to 2026-01-25 (44,305 rows)
-- **Columns:** `Timestamp_UTC`, `subba-name`, `MW_Load`, `parent-name`
-- **Usage:** Converted to per-household kW via 9 variability factors
-
-### 13c. Household Generation (9 Variability Factors)
-
-**File:** `data_extraction/household_generator.py`
-
-Each location gets unique household usage based on:
-
-| # | Factor | What it models |
-|---|--------|---------------|
-| 1 | Longitude | Coastal vs inland climate (cooling needs) |
-| 2 | Latitude | North vs south microclimate |
-| 3 | Elevation proxy | Higher = cooler, less AC |
-| 4 | Household characteristics | Size, occupancy, efficiency |
-| 5 | Neighbourhood density | Urban vs suburban vs rural |
-| 6 | Economic / home-age | Newer homes = more efficient |
-| 7 | Solar profile | Daylight usage curve |
-| 8 | EV charging | Nighttime charging schedule |
-| 9 | Multi-generational | Higher base load |
-
-**Deterministic:** Same (lat, lon) always produces the same household data
-(SHA-256 seeded RNG).
-
-### 13d. xAI / Grok API
-
-**File:** `grok_backend.py`
-
-- **Base URL:** `https://api.x.ai/v1`
-- **Model:** `grok-4-1-fast-reasoning`
-- **Protocol:** OpenAI-compatible chat completions
-- **Structured output:** JSON schema sent in `response_format`
-- **Retry:** 3 retries with exponential backoff on 429/5xx
-- **Repair:** 1 automatic repair attempt if JSON validation fails
-- **Timeout:** 3600s (reasoning models can be slow)
-
----
-
-## 14. Generated File Outputs
-
-### Per-location data (under `data/generated/<location>/`)
-
-| File | Rows | Description |
-|------|------|-------------|
-| `weather_data.csv` | ~260 | Weekly weather (temp, irradiance, cloud cover) |
-| `household_data.csv` | ~44,000 | Hourly household kW |
-| `electricity_data.csv` | ~260 | Weekly aggregated load (max, min, avg) |
-
-### Final outputs (under `outputs/`)
-
-| File | Description |
-|------|-------------|
-| `<name>_features.txt` | Full 60+ feature summary (the text fed to the LLM) |
-| `<name>_report.txt` | Final dual-scenario plain-text report |
-
-### Example feature output structure
-
-```
-================================================================
-  FEATURE-ENGINEERED SUMMARY FOR LLM
-================================================================
-
-ELECTRICITY CONSUMPTION SUMMARY
-----------------------------------------
-  Annual household consumption    : 8,234.56 kWh
-  Avg daily consumption           : 22.56 kWh
-  ...
-
-SOLAR POTENTIAL SUMMARY
-----------------------------------------
-  Avg weekly irradiance           : 215.43 W/m2
-  Est daily peak sun hours        : 1.72 hrs
-  ...
-
-HOUSEHOLD SUMMARY
-----------------------------------------
-  kWh per occupant (daily)        : 5.64 kWh
-  ...
-
-PV SIZING & FINANCIAL ANALYSIS
-----------------------------------------
-  Panels for 100% offset          : 14
-  Break-even                      : 7.82 years
-  ...
-
-GRID DEPENDENCY
-RISK & SENSITIVITY
-EV & BUDGET SUMMARY
-```
-
----
-
-## 15. Troubleshooting
+## 12. Troubleshooting
 
 ### "xAI API key not found"
 
@@ -822,42 +476,31 @@ EV & BUDGET SUMMARY
 export XAI_API_KEY="xai-YOUR-KEY-HERE"
 ```
 
-Or check `config.yaml` → `xai.api_key_env` matches the env var you exported.
-
-### "Locations file not found"
-
-Ensure `data/locations.csv` exists with columns `name,latitude,longitude`.
-
-### Open-Meteo API errors
-
-- Rate limited → wait and retry (the fetcher does not auto-retry)
-- No data for dates → check the `years_back` parameter (default 5)
-- Network error → ensure internet connection
+Check that `config.yaml` → `xai.api_key_env` matches the env var name.
 
 ### "Could not extract JSON from response"
 
 The LLM didn't return valid JSON. Try:
 1. Increase `max_tokens` in `config.yaml` (e.g. `8192`)
 2. Lower `temperature` (e.g. `0.1`)
-3. Check the raw response in logs for debugging
+3. Check the raw response in the terminal logs
 
-### Schema validation errors
+### Chatbot doesn't open in browser
 
-The LLM's JSON didn't match the expected schema. The backend automatically
-attempts one repair. If it still fails, check:
-- `schemas/pv_recommendation_schema.py` for expected fields
-- The raw response logged at INFO level
+Check the terminal output for the URL (usually `http://127.0.0.1:7860`).
+Open it manually if auto-launch is blocked.
 
 ### Very slow responses
 
-- `grok-4-1-fast-reasoning` is a reasoning model; responses can take 30-120s
-- The timeout is set to 3600s (1 hour) by default
-- For faster (less detailed) responses, try changing the model in `config.yaml`
+- `grok-3-fast` typically responds in 10–30 seconds
+- Reasoning models like `grok-4-1-fast-reasoning` can take 60–180 seconds
+- Set `xai.timeout_s` accordingly (`120` for fast, `3600` for reasoning)
 
 ### Import errors
 
 ```bash
-pip install pandas numpy pyyaml requests openai sentence-transformers
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### "PEP 668 externally-managed-environment"
@@ -865,79 +508,37 @@ pip install pandas numpy pyyaml requests openai sentence-transformers
 You're using system Python. Use the venv:
 
 ```bash
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
----
+### Open-Meteo API errors
 
-## 16. Architecture Diagram
-
-```
-                    ┌──────────────┐
-                    │  locations   │
-                    │    .csv      │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │  workflow.py │  ← CLI entry point
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ pipeline.py  │  ← orchestrates everything
-                    └──┬───┬───┬───┘
-                       │   │   │
-          ┌────────────┘   │   └────────────┐
-          │                │                │
-   ┌──────▼──────┐  ┌─────▼──────┐  ┌──────▼──────┐
-   │   data_     │  │  feature_  │  │   prompt_   │
-   │ extractor   │  │ engineering│  │  builder    │
-   └──┬───┬──────┘  └────────────┘  └──────┬──────┘
-      │   │                                │
-┌─────▼┐ ┌▼──────────┐              ┌──────▼──────┐
-│ Open │ │ EIA CSV   │              │    RAG      │
-│Meteo │ │ household │              │  retriever  │
-│ API  │ │ generator │              └──────┬──────┘
-└──────┘ └───────────┘                     │
-                                    ┌──────▼──────┐
-                                    │   grok_     │
-                                    │  backend    │ → xAI API
-                                    └──────┬──────┘
-                                           │
-                                    ┌──────▼──────┐
-                                    │  validator  │
-                                    │  + schema   │
-                                    └──────┬──────┘
-                                           │
-                                    ┌──────▼──────┐
-                                    │  renderer   │
-                                    └──────┬──────┘
-                                           │
-                                    ┌──────▼──────┐
-                                    │   outputs/  │
-                                    │  _report.txt│
-                                    └─────────────┘
-```
+- Rate limited → wait and retry
+- Network error → check internet connection
 
 ---
 
-## Quick Reference Card
+## 13. Quick Reference Card
 
 | Task | Command |
 |------|---------|
-| Set API key | `export XAI_API_KEY="xai-..."` |
-| Run all locations | `python workflow.py` |
-| Run one location | `python workflow.py --location Alpine` |
-| Test without LLM | `python workflow.py --dry-run` |
-| Reuse cached data | `python workflow.py --skip-extraction` |
-| Edit the prompt | `prompt_builder.py` → `HARD_RULES`, `DECISION_POLICY` |
-| Edit system prompt | `config.yaml` → `prompt.system_prompt` |
-| Change model | `config.yaml` → `llm.model` |
-| Change electricity rate | `config.yaml` → `features.electricity_rate_usd_kwh` |
-| Change budget | `config.yaml` → `budget.default_budget_usd` |
-| Add locations | `data/locations.csv` → add a row |
-| Add RAG knowledge | `data/rag_knowledge/` → add `.txt` or `.md` |
-| Edit output schema | `schemas/pv_recommendation_schema.py` |
-| Edit report format | `renderer.py` → `_render_scenario()` |
-| Edit features | `feature_engineering.py` → add function + update `extract_all_features()` |
-| Edit PV constants | `feature_engineering.py` → top-level constants |
+| **Set API key** | `export XAI_API_KEY="xai-..."` |
+| **Start chatbot** | `python chatbot.py` |
+| **Run all locations (CLI)** | `python workflow.py` |
+| **Run one location (CLI)** | `python workflow.py --location Alpine` |
+| **Test without LLM** | `python workflow.py --dry-run` |
+| **Reuse cached data** | `python workflow.py --skip-extraction` |
+| **Edit system prompt** | `config.yaml` → `prompt.system_prompt` |
+| **Edit follow-up prompt** | `config.yaml` → `prompt.followup_system_prompt` |
+| **Edit hard rules** | `prompt_builder.py` → `HARD_RULES` |
+| **Edit sizing policy** | `prompt_builder.py` → `DECISION_POLICY` |
+| **Change model** | `config.yaml` → `llm.model` |
+| **Change electricity rate** | `config.yaml` → `features.electricity_rate_usd_kwh` |
+| **Change default budget** | `config.yaml` → `user_inputs.budget_usd` |
+| **Add locations** | `data/locations.csv` → add a row |
+| **Edit panel/battery catalog** | `pv_tools.py` → `SOLAR_PANEL_CATALOG` / `BATTERY_CATALOG` |
+| **Edit output schema** | `schemas/pv_recommendation_schema.py` |
+| **Edit report format** | `renderer.py` → `_render_scenario()` |
+| **Edit CSS/background** | `static/solarinvest.css` |

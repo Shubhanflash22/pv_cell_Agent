@@ -220,10 +220,44 @@ def load_regional_data(filepath: str | Path | None = None) -> pd.DataFrame:
     return df[["datetime_local", "avg_household_kw"]].copy()
 
 
+_BASELINE_OCCUPANTS = 2
+_EV_CHARGE_KW = 7.2
+_EV_CHARGE_START = 22
+_EV_CHARGE_END = 6
+
+
+def _occupant_factor(num_people: int) -> float:
+    """Scale load based on total occupants (baseline = 2)."""
+    return 1.0 + 0.10 * (num_people - _BASELINE_OCCUPANTS)
+
+
+def _daytime_occupant_factor(num_daytime: int, num_total: int) -> float:
+    """Scale daytime (9-17h) load based on how many people are home."""
+    if num_total <= 0:
+        return 1.0
+    frac = num_daytime / num_total
+    return 0.7 + 0.6 * frac
+
+
+def _explicit_ev_charging(hours: np.ndarray, num_evs: int, seed: int) -> np.ndarray:
+    """Deterministic EV charging load for an explicit EV count."""
+    if num_evs <= 0:
+        return np.zeros(len(hours))
+    if _EV_CHARGE_START > _EV_CHARGE_END:
+        mask = (hours >= _EV_CHARGE_START) | (hours < _EV_CHARGE_END)
+    else:
+        mask = (hours >= _EV_CHARGE_START) & (hours < _EV_CHARGE_END)
+    return np.where(mask, _EV_CHARGE_KW * num_evs, 0.0)
+
+
 def generate_household_data(
     lat: float,
     lon: float,
     eia_csv: str | Path | None = None,
+    *,
+    num_people: int | None = None,
+    num_daytime_occupants: int | None = None,
+    num_evs: int | None = None,
 ) -> pd.DataFrame:
     """Generate per-household hourly kW data for a single (lat, lon).
 
@@ -231,6 +265,9 @@ def generate_household_data(
     ----------
     lat, lon : target coordinates.
     eia_csv  : path to EIA regional load CSV (default: bundled file).
+    num_people : optional total occupant count override.
+    num_daytime_occupants : optional daytime (9 AM-5 PM) occupant count.
+    num_evs : optional EV count override.
 
     Returns
     -------
@@ -239,23 +276,41 @@ def generate_household_data(
     df = load_regional_data(eia_csv)
     seed = _location_seed(lat, lon)
 
-    # Scalar factors (1–6, 9)
+    char_factor = _household_characteristics(seed)
+
+    if num_people is not None:
+        occ_factor = _occupant_factor(num_people)
+    else:
+        occ_factor = _multigenerational_factor(lat, lon, seed)
+
     scalar = (
         _longitude_factor(lon)
         * _latitude_factor(lat)
         * _elevation_factor(lat, lon)
-        * _household_characteristics(seed)
+        * char_factor
         * _density_factor(lat, lon)
         * _economic_age_factor(lat, lon)
-        * _multigenerational_factor(lat, lon, seed)
+        * occ_factor
     )
 
     df["household_kw"] = df["avg_household_kw"] * scalar
 
+    # Daytime occupancy adjustment (9 AM – 5 PM)
+    if num_daytime_occupants is not None and num_people is not None:
+        hours = df["datetime_local"].dt.hour.values
+        daytime_mask = (hours >= 9) & (hours < 17)
+        day_factor = _daytime_occupant_factor(num_daytime_occupants, num_people)
+        df.loc[daytime_mask, "household_kw"] *= day_factor
+
     # Time-dependent factors (7, 8)
     hours = df["datetime_local"].dt.hour.values
     solar_mult = _solar_profile(hours, lat, lon, seed)
-    ev_add = _ev_charging(hours, lat, lon, seed)
+
+    if num_evs is not None:
+        ev_add = _explicit_ev_charging(hours, num_evs, seed)
+    else:
+        ev_add = _ev_charging(hours, lat, lon, seed)
+
     df["household_kw"] = df["household_kw"] * solar_mult + ev_add
     df["household_kw"] = df["household_kw"].clip(lower=0)
 
