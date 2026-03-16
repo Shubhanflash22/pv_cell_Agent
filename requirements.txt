@@ -11,3 +11,10 @@ numpy>=1.24.0
 
 # Chatbot UI
 gradio>=4.0.0
+
+# PDF export
+reportlab>=4.0.0
+
+# Speech-to-text for voice questions
+SpeechRecognition>=3.10.0
+pydub>=0.25.0

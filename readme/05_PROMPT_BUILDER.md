@@ -2,9 +2,11 @@
 
 ## Purpose
 
-The prompt builder is responsible for **assembling the final LLM prompt** — the exact text that the Grok model receives. It combines feature data, RAG passages, hard constraints, a decision algorithm, the JSON output schema, and the task question into a single, carefully structured prompt.
+The prompt builder assembles the **initial LLM prompt** for the PV-sizing recommendation — the exact text the Grok model receives on the first run. It combines feature data, equipment catalog, user inputs, pre-computed tool results, hard constraints, a decision policy, the JSON output schema, and the task question into a single structured prompt.
 
-This module is where the "agentic" reasoning is encoded: the **HARD RULES** and **DECISION POLICY** tell the LLM not just what to produce, but *how to think about the problem*.
+This module encodes the "agentic" reasoning: **HARD RULES** and **DECISION POLICY** tell the LLM not just what to produce, but *how to think* — primarily by **copying** pre-computed values from TOOL RESULTS rather than inventing them.
+
+> **Note:** RAG (Retrieval-Augmented Generation) has been fully removed. The prompt no longer includes RAG passages. All domain knowledge is injected via the equipment catalog and pre-computed tool results.
 
 ---
 
@@ -14,16 +16,48 @@ This module is where the "agentic" reasoning is encoded: the **HARD RULES** and 
 
 ```python
 def build_prompt(
-    feature_summary: str,     # Output of format_for_llm()
-    rag_block: str,           # Output of RAGRetriever.retrieve_block()
-    prompt_cfg: PromptConfig, # From config (max_prompt_chars, system_prompt)
-    question: str = None,     # Custom question (optional)
+    feature_summary: str,           # Output of format_for_llm()
+    prompt_cfg: PromptConfig,       # From config (max_prompt_chars, system_prompt)
+    question: str = None,           # Custom question (optional)
+    user_inputs: dict = None,       # Homeowner-supplied values
+    tool_results: dict = None,      # Pre-computed from pv_tools.run_all_tools()
 ) -> str:
     """Assemble the full user prompt for the LLM."""
 
 def get_system_prompt(prompt_cfg: PromptConfig) -> str:
     """Return the system prompt from config."""
 ```
+
+---
+
+## Follow-Up Chats (Not in Prompt Builder)
+
+**Follow-up questions are NOT handled by the prompt builder.** They use a separate flow:
+
+1. **Pipeline.chat_followup()** — Called by the chatbot when the user asks a follow-up (e.g., "Why did you recommend 19 panels?", "What if my budget is $20k?").
+
+2. **Message assembly** — The pipeline builds a message list:
+   - Optional system message: `followup_system_prompt` from `config.yaml`
+   - Full prior conversation (user + assistant messages)
+   - New user question
+
+3. **Backend.chat()** — Sends the assembled messages to the LLM. No `build_prompt()` call.
+
+4. **Config** — The follow-up persona is defined in `config.yaml`:
+
+```yaml
+prompt:
+  followup_system_prompt: >
+    You are a professional solar investment advisor for San Diego
+    homeowners. You speak as a trusted consultant, not a chatbot.
+    Answer the homeowner's question using ONLY the recommendation,
+    tool results, and conversation already provided.
+    Reference specific numbers from the analysis (panel count,
+    savings, payback, roof fit) when explaining your reasoning.
+    ...
+```
+
+The prompt builder is used **only for the initial recommendation**. Follow-ups rely on the conversation history and `followup_system_prompt`.
 
 ---
 
@@ -34,289 +68,215 @@ The final prompt sent to the LLM is assembled in this exact order:
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  1. FEATURE TEXT (~2,500 chars)                          │
-│     Output of format_for_llm() — 60+ features           │
+│     Output of format_for_llm() — 60+ features             │
 │     ================================================================
-│       FEATURE-ENGINEERED SUMMARY FOR LLM                 │
+│       FEATURE-ENGINEERED SUMMARY FOR LLM                  │
 │     ================================================================
 │     ELECTRICITY CONSUMPTION SUMMARY                      │
 │     ...                                                  │
-│     EV & BUDGET SUMMARY                                  │
-│     ...                                                  │
-│     ================================================================
 ├──────────────────────────────────────────────────────────┤
 │  2. BLANK LINE                                           │
 ├──────────────────────────────────────────────────────────┤
-│  3. RAG PASSAGES (~1,500 chars)                          │
-│     === RAG PASSAGES ===                                 │
-│     --- Passage 1 ---                                    │
-│     <San Diego market knowledge>                         │
-│     --- Passage 2 ---                                    │
-│     ...                                                  │
-│     === END RAG ===                                      │
+│  3. EQUIPMENT CATALOG (~2,000 chars)                     │
+│     Auto-generated from pv_tools (panels, batteries,       │
+│     constants, EV assumptions)                           │
 ├──────────────────────────────────────────────────────────┤
 │  4. BLANK LINE                                           │
 ├──────────────────────────────────────────────────────────┤
-│  5. HARD RULES (~900 chars)                              │
-│     7 numbered constraints the LLM must follow           │
+│  5. USER INPUTS (~400 chars)                             │
+│     === USER INPUTS (homeowner-supplied values) ===      │
+│     Latitude, longitude, num_evs, num_people,             │
+│     budget_usd, roof dimensions, rate_plan, panel_brand  │
 ├──────────────────────────────────────────────────────────┤
-│  6. DECISION POLICY (~1,200 chars)                       │
-│     Step-by-step algorithm for optimal + recommended     │
+│  6. BLANK LINE                                           │
 ├──────────────────────────────────────────────────────────┤
-│  7. JSON SCHEMA (~1,000 chars)                           │
-│     The exact JSON schema the output must match          │
+│  7. TOOL RESULTS (~4,000–8,000 chars) — SACRED           │
+│     === PRE-COMPUTED TOOL RESULTS ===                    │
+│     Selected panel, brand selection, battery,            │
+│     load profile, tariff, roof layout, sizing,            │
+│     recommended/optimal scenarios, battery analysis       │
 ├──────────────────────────────────────────────────────────┤
 │  8. BLANK LINE                                           │
 ├──────────────────────────────────────────────────────────┤
-│  9. TASK QUESTION (~300 chars)                           │
-│     The actual question asking for two scenarios         │
+│  9. HARD RULES (~2,000 chars) — SACRED                   │
+│     11 numbered constraints (anti-hallucination, etc.)   │
+├──────────────────────────────────────────────────────────┤
+│  10. DECISION POLICY (~1,500 chars) — SACRED             │
+│      Step-by-step copy instructions for optimal,         │
+│      recommended, battery, panel brand                   │
+├──────────────────────────────────────────────────────────┤
+│  11. JSON SCHEMA (~1,500 chars) — SACRED                │
+│      Required output structure                           │
+├──────────────────────────────────────────────────────────┤
+│  12. BLANK LINE                                          │
+├──────────────────────────────────────────────────────────┤
+│  13. TASK QUESTION (~800 chars) — SACRED                 │
+│      Produce 4 objects: optimal, recommended,             │
+│      battery_recommendation, panel_brand_recommendation   │
 └──────────────────────────────────────────────────────────┘
 
-Total: ~7,500–10,000 characters (well within the 12,000 char limit)
+Total: ~15,000–20,000 characters (within 24,000 char limit)
 ```
 
 ---
 
-## Component 1: Hard Rules
+## Component 1: Equipment Catalog
 
-The `HARD_RULES` constant defines 7 **inviolable constraints** for the LLM:
+Auto-generated from `pv_tools` data:
 
-```
-### HARD RULES (you must obey all of these)
-
-1. You must NOT introduce any numeric values that are not found in the
-   FEATURES block or the RAG passages unless you explicitly label them as
-   "assumption" in your output.
-
-2. Your output must contain exactly TWO scenarios: "optimal" and "recommended".
-   - "optimal"     : the technically best system that maximises energy offset
-                     and long-term ROI, even if it exceeds the stated budget.
-   - "recommended" : the balanced, budget-aware system the homeowner should
-                     actually purchase — must NOT exceed max_panels_within_budget
-                     when the budget is binding.
-
-3. If panels_for_70pct_offset is within budget, the RECOMMENDED scenario
-   must target at least 70% offset — unless nighttime load fraction is
-   very high (>0.50) or the export policy makes it uneconomical.
-
-4. The OPTIMAL scenario may target 100% offset (or higher ROI) regardless of
-   the stated budget, but must not exceed roof capacity.
-
-5. Each scenario must include its own rationale field (1-3 sentences
-   explaining why that specific panel count was chosen).
-
-6. Your output must be valid JSON matching the schema below. No prose,
-   no markdown fences, no extra text — ONLY the JSON object.
-
-7. Include 5–12 shared evidence entries, each quoting a specific numeric
-   value from the FEATURES block or a relevant fact from RAG passages.
-```
-
-### Rule Design Philosophy
-
-| Rule | Purpose |
-|------|---------|
-| Rule 1 | **Anti-hallucination** — forces the LLM to cite only provided data |
-| Rule 2 | **Dual-scenario requirement** — ensures both perspectives are given |
-| Rule 3 | **NEM 3.0 awareness** — 70% offset is the sweet spot under new policy |
-| Rule 4 | **Optimal vs practical separation** — optimal ignores budget |
-| Rule 5 | **Explainability** — every recommendation must be justified |
-| Rule 6 | **Output format enforcement** — no prose, just JSON |
-| Rule 7 | **Evidence trail** — the report's evidence section is traceable |
+- **SOLAR PANEL OPTIONS** — Table of all panels (manufacturer, model, efficiency, $/Wp, temp coeff, Wp, area, cells, degradation)
+- **BATTERY OPTIONS** — Table of batteries (capacity, charge/discharge kW, RTE, cycles, cost)
+- **FINANCIAL & PHYSICAL CONSTANTS** — STC irradiance, PR, ITC, utility escalation, NPV discount rate, O&M, NEM export credit, inverter replacement, analysis years
+- **EV CHARGING ASSUMPTIONS** — Charging window, EVSE power, daily energy per EV
 
 ---
 
-## Component 2: Decision Policy
+## Component 2: User Inputs Block
 
-The `DECISION_POLICY` constant provides a **step-by-step algorithm** the LLM should follow:
+Formatted from the `user_inputs` dict passed by the pipeline:
 
-### Optimal Scenario Algorithm
-
-```
-1. Start with N_opt = N_100  (panels for 100% offset)
-2. If N_100 > N_roof: N_opt = N_roof  (cap at roof capacity)
-3. If payback at N_100 > 15 years: drop to N_70 for better ROI
-4. Compute all derived values from N_opt
-5. Set budget_binding = False  (optimal ignores budget)
-```
-
-### Recommended Scenario Algorithm
-
-```
-1. Start with N_rec = min(N_70, N_budget)
-2. If payback at N_70 > 12 years OR high risks: N_rec = min(N_50, N_budget)
-3. If nighttime_load_fraction > 0.50: cap at N_50 (recommend storage)
-4. If N_roof < N_rec: N_rec = N_roof  (roof binding)
-5. Compute all derived values from N_rec
-6. Set budget_binding = True if N_budget constrained N_rec
-```
-
-### Variables Referenced
-
-| Variable | Source Feature |
-|----------|---------------|
-| `N_50` | `panels_for_50pct_offset` |
-| `N_70` | `panels_for_70pct_offset` |
-| `N_100` | `panels_for_100pct_offset` |
-| `N_budget` | `budget_analysis.max_panels` |
-| `N_roof` | Not directly computed (LLM estimates or uses RAG data) |
+- Latitude, longitude
+- num_evs, num_people, num_daytime_occupants
+- budget_usd
+- roof_length_m, roof_breadth_m, roof_area_m2
+- rate_plan, panel_brand
 
 ---
 
-## Component 3: JSON Schema Block
+## Component 3: Tool Results Block
 
-The output schema is imported from `schemas/pv_recommendation_schema.py` and included verbatim:
+Formatted from `pv_tools.run_all_tools()` output. Includes:
 
-```python
-schema_block = (
-    f"### REQUIRED OUTPUT JSON SCHEMA\n"
-    f"```json\n{PV_RECOMMENDATION_SCHEMA_JSON}\n```"
-)
-```
-
-This gives the LLM the exact structure it must produce (see `07_SCHEMAS_AND_VALIDATION.md` for details).
+| Section | Content |
+|---------|---------|
+| SELECTED PANEL | Manufacturer, model, power, efficiency, $/Wp, dimensions, cells |
+| BRAND SELECTION | Mode, selected brand, comparison table (ranked by NPV), winner vs runner-up |
+| BATTERY | Selected battery or "None recommended" |
+| LOAD PROFILE | Annual kWh, peak kW, avg kW, nighttime fraction |
+| TOU TARIFF | Rate plan, avg/on-peak/off-peak rates |
+| ROOF LAYOUT | Dimensions, best/alt orientation, max panels |
+| SYSTEM SIZING | Panels for 100%/70%, max by roof/budget, prod per panel |
+| RECOMMENDED SCENARIO | Pre-computed economics (panels, CAPEX, savings, payback, NPV, etc.) |
+| OPTIMAL SCENARIO | Same structure |
+| BATTERY ANALYSIS | Side-by-side PV-only vs PV+battery, extra savings, incremental payback, TOOL DECISION |
 
 ---
 
-## Component 4: Task Question
+## Component 4: Hard Rules
 
-The default question asks for both scenarios:
+The `HARD_RULES` constant defines **11 inviolable constraints**:
 
-```python
-question = (
-    "Based on the FEATURES and RAG data above, produce TWO solar panel "
-    "sizing scenarios for this household:\n"
-    "  1. \"optimal\"     – the technically best system (max offset / ROI).\n"
-    "  2. \"recommended\" – the budget-aware, practical system to purchase.\n"
-    "Follow the DECISION POLICY for each scenario. "
-    "Output ONLY valid JSON matching the schema — two named objects plus shared evidence."
-)
-```
+| Area | Rules | Purpose |
+|------|-------|---------|
+| **Numeric integrity** | Copy all values from TOOL RESULTS > FEATURES > CATALOG > USER INPUTS. No own arithmetic. Omit or "N/A" if missing. | Anti-hallucination |
+| **Scenario structure** | Two scenarios (optimal, recommended). Match pre-computed scenarios. Include rationale. | Dual-scenario requirement |
+| **Evidence** | 5–12 entries with source and exact quote. | Traceability |
+| **Constraints** | Use user panel_brand if specified. Respect max_panels_by_roof. Use tariff from TOOL RESULTS. Output valid JSON only. | Consistency |
+| **Self-check** | Verify panels×Wp=kW, CAPEX, payback, savings match TOOL RESULTS. Verify battery and panel_brand fields. | Validation before output |
 
-This can be overridden by passing a custom `question` parameter to `build_prompt()`.
+---
+
+## Component 5: Decision Policy
+
+The `DECISION_POLICY` tells the LLM **how to populate** each output object:
+
+### Optimal Scenario
+- Copy from TOOL RESULTS > OPTIMAL SCENARIO
+- N_opt = min(N_100, N_roof)
+- budget_binding = False
+
+### Recommended Scenario
+- Copy from TOOL RESULTS > RECOMMENDED SCENARIO
+- N_rec = min(N_70, N_budget, N_roof)
+- budget_binding = True if N_budget &lt; N_70
+
+### Battery Recommendation
+- Copy ALL values from TOOL RESULTS > BATTERY ANALYSIS
+- decision: copy TOOL DECISION exactly (add_battery / evaluate_later / pv_only)
+- rationale: reference extra_annual_savings_usd, incremental payback, nighttime fraction
+
+### Panel Brand Recommendation
+- Copy from TOOL RESULTS > BRAND SELECTION
+- selection_mode: "auto" or "user_specified"
+- npv_rank, npv_vs_runner_up_usd: from comparison table when mode is "auto"
+
+---
+
+## Component 6: Task Question
+
+The default question asks for **four objects**:
+
+1. **optimal** — Copy from TOOL RESULTS > OPTIMAL SCENARIO
+2. **recommended** — Copy from TOOL RESULTS > RECOMMENDED SCENARIO
+3. **battery_recommendation** — Copy from TOOL RESULTS > BATTERY ANALYSIS
+4. **panel_brand_recommendation** — Copy from TOOL RESULTS > BRAND SELECTION
+
+Emphasises: every numeric field must come from TOOL RESULTS; no own calculations; output ONLY valid JSON.
 
 ---
 
 ## System Prompt
 
-The system prompt is sent as a separate `system` role message (not part of the user prompt):
+The system prompt is sent as a separate `system` role message:
 
 ```yaml
 # From config.yaml
 prompt:
   system_prompt: >
-    You are an expert solar-energy analyst specializing in
-    residential photovoltaic system sizing for San Diego, California.
-    You must only use the numeric data provided in the FEATURES block
-    and the passages in the RAG block. Do not invent numbers.
+    You are a solar-energy sizing assistant for San Diego, California.
+    Your ONLY job is to format pre-computed results into valid JSON.
+    All numeric values have already been computed by deterministic
+    tools and are provided in the TOOL RESULTS block.
+    You must COPY these numbers exactly — do not re-derive, round
+    differently, estimate, or invent any numeric value.
 ```
-
-This sets the LLM's **persona** and reinforces the anti-hallucination constraint.
 
 ---
 
 ## Prompt Truncation
 
-If the assembled prompt exceeds `max_prompt_chars` (default 12,000), truncation happens in two stages:
+If the assembled prompt exceeds `max_prompt_chars` (default 24,000):
 
-### Stage 1: RAG Truncation
+### Stage 1: Feature Truncation
 ```python
-if len(rag_block) > overhead + 200:
-    truncated_rag = rag_block[:len(rag_block) - overhead - 50] + "\n... [RAG truncated] ..."
+if len(feature_summary) > overhead + 200:
+    truncated = feature_summary[:len(feature_summary) - overhead - 50] + "\n... [FEATURES truncated] ..."
+    parts[0] = truncated
 ```
-The RAG block is truncated first because it's the most "compressible" — losing some passages is less damaging than losing rules or the schema.
+The feature block is truncated first — it is the most compressible.
 
 ### Stage 2: Hard Truncation
 ```python
 else:
     prompt = prompt[-max_chars:]
 ```
-If RAG truncation isn't enough, the prompt is hard-truncated from the **start** — this preserves the HARD RULES, DECISION POLICY, SCHEMA, and TASK at the end (which are more critical than the beginning of the feature block).
+If feature truncation isn't enough, the prompt is hard-truncated from the **start**. This preserves TOOL RESULTS, HARD RULES, DECISION POLICY, SCHEMA, and TASK at the end.
 
-### Why Truncation Matters
+### Truncation Priority
 
-| Component | Importance | Truncation Priority |
-|-----------|-----------|-------------------|
-| Task question | Critical | Never truncated |
-| JSON Schema | Critical | Never truncated |
-| Decision Policy | Critical | Never truncated |
-| Hard Rules | Critical | Never truncated |
-| RAG passages | Important | Truncated first |
-| Feature text | Important | Truncated second (from start) |
-
----
-
-## Example Assembled Prompt
-
-```
-================================================================
-  FEATURE-ENGINEERED SUMMARY FOR LLM
-================================================================
-
-ELECTRICITY CONSUMPTION SUMMARY
-----------------------------------------
-  Annual household consumption    : 8,234.56 kWh
-  Avg daily consumption           : 22.56 kWh
-  ...
-
-(... more feature sections ...)
-
-================================================================
-
-=== RAG PASSAGES ===
-
---- Passage 1 ---
-San Diego falls under SDG&E territory. As of 2024, new residential
-solar installations are subject to NEM 3.0...
-
---- Passage 2 ---
-SDG&E has some of the highest electricity rates in the US:
-Residential average: $0.33–$0.38/kWh...
-
-=== END RAG ===
-
-### HARD RULES (you must obey all of these)
-1. You must NOT introduce any numeric values...
-2. Your output must contain exactly TWO scenarios...
-...
-7. Include 5–12 shared evidence entries...
-
-### DECISION POLICY (follow this algorithm)
-Define from FEATURES:
-  N_50 = panels_for_50pct_offset
-  N_70 = panels_for_70pct_offset
-  ...
-
-### REQUIRED OUTPUT JSON SCHEMA
-```json
-{
-  "type": "object",
-  "properties": {
-    "optimal": { ... },
-    "recommended": { ... },
-    "evidence": [ ... ]
-  },
-  ...
-}
-```
-
-### TASK
-Based on the FEATURES and RAG data above, produce TWO solar panel
-sizing scenarios for this household:
-  1. "optimal" – the technically best system (max offset / ROI).
-  2. "recommended" – the budget-aware, practical system to purchase.
-...
-```
+| Component | Importance | Truncation |
+|-----------|------------|------------|
+| Task question | Critical | Never |
+| JSON Schema | Critical | Never |
+| Decision Policy | Critical | Never |
+| Hard Rules | Critical | Never |
+| Tool Results | Sacred | Never (protected) |
+| Equipment Catalog | Important | Truncated with features |
+| Feature text | Important | Truncated first |
 
 ---
 
 ## Editing Guide
 
 | What to Change | Where |
-|---------------|-------|
+|----------------|-------|
 | System prompt (LLM persona) | `config.yaml` → `prompt.system_prompt` |
-| Hard rules (constraints) | `prompt_builder.py` → `HARD_RULES` constant |
+| Follow-up persona | `config.yaml` → `prompt.followup_system_prompt` |
+| Hard rules | `prompt_builder.py` → `HARD_RULES` constant |
 | Decision algorithm | `prompt_builder.py` → `DECISION_POLICY` constant |
 | Task question | `prompt_builder.py` → inside `build_prompt()` |
 | Prompt length limit | `config.yaml` → `prompt.max_prompt_chars` |
 | Feature content | `feature_engineering.py` → `format_for_llm()` |
-| RAG content | `data/rag_knowledge/` → add/edit `.md` files |
+| Tool results format | `prompt_builder.py` → `_format_tool_results_block()` |
+| User inputs format | `prompt_builder.py` → `_format_user_inputs_block()` |
+| Equipment catalog | `pv_tools.py` → `SOLAR_PANEL_CATALOG`, `BATTERY_CATALOG`, constants |

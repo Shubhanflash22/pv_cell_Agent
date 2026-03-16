@@ -1,16 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════
-   SolarInvest – Time-of-day sky engine
-   Sets CSS variables and data-time attribute on .gradio-container
+   SolarInvest – Sky engine with animated clouds
    ═══════════════════════════════════════════════════════════════ */
 
 (function () {
     "use strict";
 
     var PALETTES = {
-        night:  { top: "#0a0e27", mid: "#1a1a3e", bottom: "#2d2d5e", sunOp: 0.6, sunTop: "15%", cloudOp: 0.15 },
-        dawn:   { top: "#2d1b69", mid: "#c94b4b", bottom: "#f09819", sunOp: 0.9, sunTop: "60%", cloudOp: 0.45 },
-        day:    { top: "#2196f3", mid: "#64b5f6", bottom: "#bbdefb", sunOp: 1.0, sunTop: "12%", cloudOp: 0.7  },
-        dusk:   { top: "#2d1b69", mid: "#c94b4b", bottom: "#f09819", sunOp: 0.8, sunTop: "55%", cloudOp: 0.5  },
+        night: { top: "#0f1b3d", mid: "#1a2a5e", bottom: "#2d3a6e", sunOp: 0.6, sunTop: "15%", cloudOp: 0.15 },
+        dawn:  { top: "#6db3d4", mid: "#f0a070", bottom: "#fce4b8", sunOp: 0.9, sunTop: "55%", cloudOp: 0.5  },
+        day:   { top: "#87CEEB", mid: "#B0E0F6", bottom: "#E0F2FE", sunOp: 1.0, sunTop: "12%", cloudOp: 0.8  },
+        dusk:  { top: "#5a7fb0", mid: "#d08060", bottom: "#f0c090", sunOp: 0.8, sunTop: "50%", cloudOp: 0.55 },
     };
 
     function getTimePeriod(hour) {
@@ -33,10 +32,10 @@
         root.style.setProperty("--sun-top",       p.sunTop);
         root.style.setProperty("--cloud-opacity", p.cloudOp);
 
-        var container = document.querySelector(".gradio-container");
-        if (container) {
-            container.setAttribute("data-time", period);
-        }
+        document.body.setAttribute("data-time", period);
+        document.body.style.background =
+            "linear-gradient(170deg, " + p.top + " 0%, " + p.mid + " 50%, " + p.bottom + " 100%)";
+        document.body.style.backgroundAttachment = "fixed";
     }
 
     function injectSkyLayer() {
@@ -48,12 +47,11 @@
             '<div class="sun-orb"></div>' +
             '<div class="cloud cloud-1"></div>' +
             '<div class="cloud cloud-2"></div>' +
-            '<div class="cloud cloud-3"></div>';
+            '<div class="cloud cloud-3"></div>' +
+            '<div class="cloud cloud-4"></div>' +
+            '<div class="cloud cloud-5"></div>';
 
-        var container = document.querySelector(".gradio-container");
-        if (container) {
-            container.insertBefore(layer, container.firstChild);
-        }
+        document.body.insertBefore(layer, document.body.firstChild);
     }
 
     function init() {

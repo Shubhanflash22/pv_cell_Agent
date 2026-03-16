@@ -15,7 +15,7 @@ import pandas as pd
 
 from config import WorkflowConfig
 from backends.base import BaseBackend
-from data_extractor import extract_all_data
+from data_extractor import extract_all_data, can_skip_extraction
 from feature_engineering import extract_all_features, format_for_llm
 from prompt_builder import build_prompt, get_system_prompt
 from pv_tools import run_all_tools
@@ -152,6 +152,7 @@ class Pipeline:
             "feature_text": "",
             "raw_response": "",
             "recommendation": None,
+            "tool_results": None,
             "report_txt": None,
             "valid": False,
             "errors": [],
@@ -161,8 +162,8 @@ class Pipeline:
 
         # 0. Data extraction (weather + household + electricity CSVs)
         logger.info("Step 0: Data extraction for %s", name)
+        gen_dir = Path("data/generated") / safe_name
         if skip_extraction:
-            gen_dir = Path("data/generated") / safe_name
             csv_paths = {
                 "weather": str(gen_dir / "weather_data.csv"),
                 "household": str(gen_dir / "household_data.csv"),
@@ -174,9 +175,21 @@ class Pipeline:
                     result["errors"].append(msg)
                     logger.error(msg)
                     return result
+        elif can_skip_extraction(
+            gen_dir, lat, lon,
+            self.cfg.extraction.years_back,
+            household_overrides,
+        ):
+            logger.info("  Using cached extraction (params match)")
+            csv_paths = {
+                "weather": str(gen_dir / "weather_data.csv"),
+                "household": str(gen_dir / "household_data.csv"),
+                "electricity": str(gen_dir / "electricity_data.csv"),
+            }
         else:
             csv_paths = extract_all_data(
                 lat, lon, name,
+                years_back=self.cfg.extraction.years_back,
                 household_overrides=household_overrides,
             )
 
@@ -199,24 +212,41 @@ class Pipeline:
         feature_text = format_for_llm(features)
         result["feature_text"] = feature_text
 
-        # 2b. Run PV tool computations (load profile, tariffs, dispatch, economics)
+        # 2b. Build user_inputs from config defaults if not provided
+        if user_inputs is None:
+            ui_cfg = self.cfg.user_inputs
+            user_inputs = {
+                "latitude": lat,
+                "longitude": lon,
+                "num_evs": ui_cfg.num_evs,
+                "num_people": ui_cfg.num_people,
+                "num_daytime_occupants": ui_cfg.num_daytime_occupants,
+                "budget_usd": effective_budget,
+                "roof_length_m": ui_cfg.roof_length_m,
+                "roof_breadth_m": ui_cfg.roof_breadth_m,
+                "roof_area_m2": ui_cfg.roof_area_m2,
+                "rate_plan": ui_cfg.rate_plan,
+                "panel_brand": ui_cfg.panel_brand,
+            }
+
+        # 2c. Run PV tool computations (load profile, tariffs, dispatch, economics)
         tool_results = None
-        if user_inputs:
-            logger.info("Step 2b: Running PV tool computations")
-            try:
-                tool_results = run_all_tools(
-                    latitude=lat,
-                    longitude=lon,
-                    num_evs=user_inputs.get("num_evs", 0),
-                    num_people=user_inputs.get("num_people", 3),
-                    num_daytime_occupants=user_inputs.get("num_daytime_occupants", 1),
-                    budget_usd=effective_budget,
-                    roof_area_m2=user_inputs.get("roof_area_m2", 50.0),
-                    rate_plan=user_inputs.get("rate_plan", "TOU_DR"),
-                    panel_brand=user_inputs.get("panel_brand"),
-                )
-            except Exception as exc:
-                logger.warning("PV tools failed (non-fatal): %s", exc)
+        logger.info("Step 2b: Running PV tool computations")
+        try:
+            tool_results = run_all_tools(
+                latitude=lat,
+                longitude=lon,
+                num_evs=user_inputs.get("num_evs", 0),
+                num_people=user_inputs.get("num_people", 3),
+                num_daytime_occupants=user_inputs.get("num_daytime_occupants", 1),
+                budget_usd=effective_budget,
+                roof_length_m=user_inputs.get("roof_length_m", 8.0),
+                roof_breadth_m=user_inputs.get("roof_breadth_m", 6.25),
+                rate_plan=user_inputs.get("rate_plan", "TOU_DR"),
+                panel_brand=user_inputs.get("panel_brand"),
+            )
+        except Exception as exc:
+            logger.warning("PV tools failed (non-fatal): %s", exc)
 
         # 3. Prompt building
         logger.info("Step 3: Prompt building")
@@ -251,6 +281,10 @@ class Pipeline:
             result["errors"] = errors
             if not is_valid:
                 logger.warning("Validation errors: %s", errors)
+
+        # 6b. Attach tool results for UI consumption
+        if tool_results:
+            result["tool_results"] = tool_results
 
         # 7. Render report
         if result["recommendation"]:

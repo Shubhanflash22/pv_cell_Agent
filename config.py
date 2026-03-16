@@ -24,18 +24,18 @@ VALID_BACKENDS = {"xai"}
 @dataclass
 class LLMConfig:
     backend: str = "xai"
-    model: str = "grok-4-1-fast-reasoning"
+    model: str = "grok-4-1-fast-non-reasoning"
     host: str = "https://api.x.ai/v1"
-    max_tokens: int = 4096
-    temperature: float = 0.2
+    max_tokens: int = 6144
+    temperature: float = 0.1
 
 
 @dataclass
 class XAIConfig:
     api_key_env: str = "XAI_API_KEY"
-    use_structured_output: bool = True
+    use_structured_output: bool = False
     response_format: str = "json_schema"
-    timeout_s: float = 3600.0
+    timeout_s: float = 120.0
 
 
 @dataclass
@@ -50,7 +50,7 @@ class FeatureConfig:
 
 @dataclass
 class PromptConfig:
-    max_prompt_chars: int = 12000
+    max_prompt_chars: int = 24000
     system_prompt: str = (
         "You are an expert solar-energy analyst specializing in "
         "residential photovoltaic system sizing for San Diego, California. "
@@ -74,6 +74,11 @@ class PathsConfig:
     locations_file: str = "data/locations.csv"
 
 
+@dataclass
+class ExtractionConfig:
+    years_back: int = 2  # weather history; 2 = faster, 5 = more accurate
+
+
 VALID_RATE_PLANS = {"TOU_DR", "TOU_DR1", "TOU_DR2"}
 
 VALID_PANEL_BRANDS = {
@@ -91,9 +96,14 @@ class UserInputsConfig:
     num_people: int = 2
     num_daytime_occupants: int = 1
     budget_usd: float = 25000.0
-    roof_area_m2: float = 50.0
+    roof_length_m: float = 8.0
+    roof_breadth_m: float = 6.25
     rate_plan: str = "TOU_DR"
     panel_brand: Optional[str] = None
+
+    @property
+    def roof_area_m2(self) -> float:
+        return round(self.roof_length_m * self.roof_breadth_m, 3)
 
 
 # ── Top-level config ─────────────────────────────────────────
@@ -104,6 +114,7 @@ class WorkflowConfig:
     features: FeatureConfig = field(default_factory=FeatureConfig)
     prompt: PromptConfig = field(default_factory=PromptConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
+    extraction: ExtractionConfig = field(default_factory=ExtractionConfig)
     user_inputs: UserInputsConfig = field(default_factory=UserInputsConfig)
 
     # ── Convenience accessors ────────────────────────────────
@@ -201,6 +212,7 @@ def load_config(path: str | Path | None = None) -> WorkflowConfig:
         features=_dict_to_dataclass(FeatureConfig, raw.get("features")),
         prompt=_dict_to_dataclass(PromptConfig, raw.get("prompt")),
         paths=_dict_to_dataclass(PathsConfig, raw.get("paths")),
+        extraction=_dict_to_dataclass(ExtractionConfig, raw.get("extraction")),
         user_inputs=_dict_to_dataclass(UserInputsConfig, raw.get("user_inputs")),
     )
     return cfg

@@ -26,17 +26,17 @@ ELECTRICITY CONSUMPTION SUMMARY
 
 SOLAR POTENTIAL SUMMARY
 ----------------------------------------
-  Avg weekly irradiance           : 231.13 W/m2
+  Avg weekly irradiance           : 231.08 W/m2
   Est daily peak sun hours        : 1.85 hrs
   Est annual sunlight hours       : 675.25 hrs
-  Seasonal irradiance index       : Autumn=0.93  Spring=1.04  Summer=0.99  Winter=1.04
-  Irradiance variance             : 5,828.75
-  Temp <> irradiance correlation   : 0.6569
+  Seasonal irradiance index       : Autumn=0.94  Spring=1.03  Summer=0.98  Winter=1.05
+  Irradiance variance             : 5,828.70
+  Temp <> irradiance correlation   : 0.6576
   Weeks above PV optimal temp     : 28
-  Cloudy-week frequency           : 9.20%
-  Sunlight consistency (CV)       : 0.3303
-  Consumption <> irradiance corr   : -0.4692
-  Lag correlations                : lag0=-0.469, lag1=-0.422, lag2=-0.374, lag3=-0.312, lag4=-0.254
+  Cloudy-week frequency           : 8.81%
+  Sunlight consistency (CV)       : 0.3304
+  Consumption <> irradiance corr   : -0.5136
+  Lag correlations                : lag0=-0.514, lag1=-0.469, lag2=-0.422, lag3=-0.374, lag4=-0.312
 
 HOUSEHOLD SUMMARY
 ----------------------------------------
@@ -77,7 +77,7 @@ RISK & SENSITIVITY
   ROI (sun +10%)                  : 268.02%
   ROI (sun -10%)                  : 200.95%
   Consumption volatility (CV)     : 0.1282
-  Sunlight volatility (CV)        : 0.3303
+  Sunlight volatility (CV)        : 0.3304
   Combined risk score             : 0.2293
 
 EV & BUDGET SUMMARY

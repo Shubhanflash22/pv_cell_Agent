@@ -11,6 +11,7 @@ All files are written into a per-location subdirectory under ``data/generated/``
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -20,6 +21,8 @@ from data_extraction.weather_fetcher import fetch_weather
 from data_extraction.household_generator import generate_household_data
 
 logger = logging.getLogger(__name__)
+
+_EXTRACTION_PARAMS_FILE = ".extraction_params.json"
 
 
 def _aggregate_household_to_weekly(household_df: pd.DataFrame) -> pd.DataFrame:
@@ -112,8 +115,49 @@ def extract_all_data(
     elec_df.to_csv(electricity_path, index=False)
     logger.info("        → %s  (%d rows)", electricity_path, len(elec_df))
 
+    # 4. Write params for cache reuse
+    params = {
+        "lat": round(lat, 4),
+        "lon": round(lon, 4),
+        "years_back": years_back,
+        "num_people": hh_kwargs.get("num_people"),
+        "num_daytime_occupants": hh_kwargs.get("num_daytime_occupants"),
+        "num_evs": hh_kwargs.get("num_evs"),
+    }
+    params_path = out_dir / _EXTRACTION_PARAMS_FILE
+    params_path.write_text(json.dumps(params, indent=2), encoding="utf-8")
+
     return {
         "weather": weather_path.resolve(),
         "household": household_path.resolve(),
         "electricity": electricity_path.resolve(),
     }
+
+
+def can_skip_extraction(
+    gen_dir: Path,
+    lat: float,
+    lon: float,
+    years_back: int,
+    household_overrides: dict | None,
+) -> bool:
+    """Return True if cached CSVs exist and params match."""
+    params_path = gen_dir / _EXTRACTION_PARAMS_FILE
+    if not params_path.exists():
+        return False
+    for f in ("weather_data.csv", "household_data.csv", "electricity_data.csv"):
+        if not (gen_dir / f).exists():
+            return False
+    try:
+        stored = json.loads(params_path.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    hh = household_overrides or {}
+    return (
+        round(stored.get("lat"), 4) == round(lat, 4)
+        and round(stored.get("lon"), 4) == round(lon, 4)
+        and stored.get("years_back") == years_back
+        and stored.get("num_people") == hh.get("num_people")
+        and stored.get("num_daytime_occupants") == hh.get("num_daytime_occupants")
+        and stored.get("num_evs") == hh.get("num_evs")
+    )

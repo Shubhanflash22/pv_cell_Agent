@@ -30,9 +30,9 @@ from utils.json_extract import extract_json
 logger = logging.getLogger(__name__)
 
 # ── Retry settings ───────────────────────────────────────────
-_MAX_RETRIES = 3
-_BASE_BACKOFF_S = 2.0
-_MAX_BACKOFF_S = 30.0
+_MAX_RETRIES = 5
+_BASE_BACKOFF_S = 3.0
+_MAX_BACKOFF_S = 60.0
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
@@ -52,9 +52,9 @@ class GrokBackend(BaseBackend):
     base_url : str
         Base URL for the xAI API.
     model : str
-        Model identifier (e.g. ``grok-4-1-fast-reasoning``).
+        Model identifier (e.g. ``grok-4-1-fast-non-reasoning``).
     timeout_s : float
-        HTTP timeout in seconds (default 3600 for reasoning models).
+        HTTP timeout in seconds.
     use_structured_output : bool
         If True, include the PV recommendation JSON schema in the
         request so the model produces structured output.
@@ -64,9 +64,9 @@ class GrokBackend(BaseBackend):
         self,
         api_key: str,
         base_url: str = "https://api.x.ai/v1",
-        model: str = "grok-4-1-fast-reasoning",
-        timeout_s: float = 3600.0,
-        use_structured_output: bool = True,
+        model: str = "grok-4-1-fast-non-reasoning",
+        timeout_s: float = 120.0,
+        use_structured_output: bool = False,
     ) -> None:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
@@ -84,6 +84,7 @@ class GrokBackend(BaseBackend):
                 api_key=self.api_key,
                 base_url=self.base_url,
                 timeout=self.timeout_s,
+                max_retries=0,  # disable SDK's built-in retry; _call_with_retry handles it
             )
             self._use_sdk = True
             logger.info("GrokBackend: using OpenAI SDK (base_url=%s)", self.base_url)
@@ -257,6 +258,22 @@ class GrokBackend(BaseBackend):
         msgs.append({"role": "user", "content": prompt})
         return msgs
 
+    def _rebuild_client(self) -> None:
+        """Recreate the OpenAI SDK client (clears stale connection pool)."""
+        if not self._use_sdk:
+            return
+        try:
+            from openai import OpenAI
+            self._client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                timeout=self.timeout_s,
+                max_retries=0,
+            )
+            logger.info("Rebuilt OpenAI SDK client (fresh connection pool)")
+        except Exception:
+            pass
+
     def _call_with_retry(
         self,
         messages: List[Dict[str, str]],
@@ -273,10 +290,14 @@ class GrokBackend(BaseBackend):
                     return self._call_requests(messages, max_tokens, temperature)
             except Exception as exc:
                 last_exc = exc
-                # Check if retryable
                 status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
                 if status and int(status) == 401:
-                    raise  # auth errors are not retryable
+                    raise
+
+                is_connection_error = "Connection" in type(exc).__name__ or "ReadError" in str(type(exc))
+                if is_connection_error:
+                    self._rebuild_client()
+
                 if attempt < _MAX_RETRIES:
                     wait = _backoff(attempt)
                     logger.warning(

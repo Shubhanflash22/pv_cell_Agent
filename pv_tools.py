@@ -81,15 +81,18 @@ EV_CHARGE_END_HOUR        = 6
 # ═══════════════════════════════════════════════════════════════
 
 SOLAR_PANEL_CATALOG: List[Dict[str, Any]] = [
-    {"manufacturer": "REC Group",      "model": "Alpha Pure",  "efficiency_percent": 22.6, "cost_per_wp_usd": 2.85, "temp_coeff_pct_per_c": -0.26, "panel_power_w": 405, "area_m2": 1.79, "cells": 60, "degradation_rate": 0.005},
-    {"manufacturer": "JA Solar",       "model": "DeepBlue",    "efficiency_percent": 21.5, "cost_per_wp_usd": 2.90, "temp_coeff_pct_per_c": -0.35, "panel_power_w": 395, "area_m2": 1.84, "cells": 60, "degradation_rate": 0.006},
-    {"manufacturer": "Trina Solar",    "model": "Vertex S",    "efficiency_percent": 21.8, "cost_per_wp_usd": 2.90, "temp_coeff_pct_per_c": -0.34, "panel_power_w": 400, "area_m2": 1.83, "cells": 60, "degradation_rate": 0.006},
-    {"manufacturer": "Canadian Solar", "model": "TOPHiKu7",    "efficiency_percent": 22.5, "cost_per_wp_usd": 3.10, "temp_coeff_pct_per_c": -0.30, "panel_power_w": 420, "area_m2": 1.87, "cells": 66, "degradation_rate": 0.005},
-    {"manufacturer": "Silfab Solar",   "model": "Prime",       "efficiency_percent": 22.1, "cost_per_wp_usd": 3.15, "temp_coeff_pct_per_c": -0.33, "panel_power_w": 410, "area_m2": 1.85, "cells": 60, "degradation_rate": 0.005},
-    {"manufacturer": "Jinko Solar",    "model": "Tiger Neo",   "efficiency_percent": 23.8, "cost_per_wp_usd": 3.20, "temp_coeff_pct_per_c": -0.29, "panel_power_w": 440, "area_m2": 1.85, "cells": 66, "degradation_rate": 0.005},
-    {"manufacturer": "LONGi Solar",    "model": "Hi-MO 6",     "efficiency_percent": 23.3, "cost_per_wp_usd": 3.35, "temp_coeff_pct_per_c": -0.29, "panel_power_w": 435, "area_m2": 1.87, "cells": 66, "degradation_rate": 0.005},
-    {"manufacturer": "Maxeon Solar",   "model": "Maxeon 7",    "efficiency_percent": 22.8, "cost_per_wp_usd": 3.50, "temp_coeff_pct_per_c": -0.27, "panel_power_w": 430, "area_m2": 1.89, "cells": 66, "degradation_rate": 0.004},
-    {"manufacturer": "Aiko Solar",     "model": "Neostar 2P",  "efficiency_percent": 24.3, "cost_per_wp_usd": 3.75, "temp_coeff_pct_per_c": -0.24, "panel_power_w": 460, "area_m2": 1.89, "cells": 66, "degradation_rate": 0.004},
+    # length_m × width_m are physical dimensions (portrait orientation, longer side first).
+    # cells_in_series × cells_in_parallel = total cells per panel.
+    # Standard mono/poly panels: all cells in series (cells_in_parallel = 1).
+    {"manufacturer": "REC Group",      "model": "Alpha Pure",  "efficiency_percent": 22.6, "cost_per_wp_usd": 2.85, "temp_coeff_pct_per_c": -0.26, "panel_power_w": 405, "area_m2": 1.79, "length_m": 1.730, "width_m": 1.034, "cells": 60, "cells_in_series": 60, "cells_in_parallel": 1, "degradation_rate": 0.005},
+    {"manufacturer": "JA Solar",       "model": "DeepBlue",    "efficiency_percent": 21.5, "cost_per_wp_usd": 2.90, "temp_coeff_pct_per_c": -0.35, "panel_power_w": 395, "area_m2": 1.84, "length_m": 1.769, "width_m": 1.040, "cells": 60, "cells_in_series": 60, "cells_in_parallel": 1, "degradation_rate": 0.006},
+    {"manufacturer": "Trina Solar",    "model": "Vertex S",    "efficiency_percent": 21.8, "cost_per_wp_usd": 2.90, "temp_coeff_pct_per_c": -0.34, "panel_power_w": 400, "area_m2": 1.83, "length_m": 1.762, "width_m": 1.039, "cells": 60, "cells_in_series": 60, "cells_in_parallel": 1, "degradation_rate": 0.006},
+    {"manufacturer": "Canadian Solar", "model": "TOPHiKu7",    "efficiency_percent": 22.5, "cost_per_wp_usd": 3.10, "temp_coeff_pct_per_c": -0.30, "panel_power_w": 420, "area_m2": 1.87, "length_m": 1.780, "width_m": 1.051, "cells": 66, "cells_in_series": 66, "cells_in_parallel": 1, "degradation_rate": 0.005},
+    {"manufacturer": "Silfab Solar",   "model": "Prime",       "efficiency_percent": 22.1, "cost_per_wp_usd": 3.15, "temp_coeff_pct_per_c": -0.33, "panel_power_w": 410, "area_m2": 1.85, "length_m": 1.776, "width_m": 1.041, "cells": 60, "cells_in_series": 60, "cells_in_parallel": 1, "degradation_rate": 0.005},
+    {"manufacturer": "Jinko Solar",    "model": "Tiger Neo",   "efficiency_percent": 23.8, "cost_per_wp_usd": 3.20, "temp_coeff_pct_per_c": -0.29, "panel_power_w": 440, "area_m2": 1.85, "length_m": 1.762, "width_m": 1.050, "cells": 66, "cells_in_series": 66, "cells_in_parallel": 1, "degradation_rate": 0.005},
+    {"manufacturer": "LONGi Solar",    "model": "Hi-MO 6",     "efficiency_percent": 23.3, "cost_per_wp_usd": 3.35, "temp_coeff_pct_per_c": -0.29, "panel_power_w": 435, "area_m2": 1.87, "length_m": 1.797, "width_m": 1.040, "cells": 66, "cells_in_series": 66, "cells_in_parallel": 1, "degradation_rate": 0.005},
+    {"manufacturer": "Maxeon Solar",   "model": "Maxeon 7",    "efficiency_percent": 22.8, "cost_per_wp_usd": 3.50, "temp_coeff_pct_per_c": -0.27, "panel_power_w": 430, "area_m2": 1.89, "length_m": 1.812, "width_m": 1.044, "cells": 66, "cells_in_series": 66, "cells_in_parallel": 1, "degradation_rate": 0.004},
+    {"manufacturer": "Aiko Solar",     "model": "Neostar 2P",  "efficiency_percent": 24.3, "cost_per_wp_usd": 3.75, "temp_coeff_pct_per_c": -0.24, "panel_power_w": 460, "area_m2": 1.89, "length_m": 1.812, "width_m": 1.044, "cells": 66, "cells_in_series": 66, "cells_in_parallel": 1, "degradation_rate": 0.004},
 ]
 
 BATTERY_CATALOG: List[Dict[str, Any]] = [
@@ -608,6 +611,158 @@ def compute_economics(
 
 
 # ═══════════════════════════════════════════════════════════════
+#  BRAND COMPARISON HELPER
+# ═══════════════════════════════════════════════════════════════
+
+def _compare_all_brands(
+    roof_length_m: float,
+    roof_breadth_m: float,
+    budget_usd: float,
+    annual_kwh: float,
+    hourly_load: list,
+    tariffs: list,
+    avg_tariff: float,
+    irradiance: float,
+    battery: Optional[Dict[str, Any]],
+    battery_units: int,
+) -> List[Dict[str, Any]]:
+    """
+    Run 10-yr NPV economics for EVERY panel in SOLAR_PANEL_CATALOG under
+    the same roof, budget, and load constraints and return a list sorted
+    by NPV descending (best brand first).
+
+    Each entry contains the key metrics so the LLM can explain the choice.
+    """
+    rows: List[Dict[str, Any]] = []
+
+    for p in SOLAR_PANEL_CATALOG:
+        # Roof capacity for this panel's actual dimensions
+        layout = _compute_roof_layout(
+            roof_length_m, roof_breadth_m, p["length_m"], p["width_m"]
+        )
+        max_roof = layout["max_panels_by_roof_dimensions"]
+
+        # Budget capacity: use gross cost (incl. 10% install) so CAPEX <= budget pre-ITC
+        p_kw             = p["panel_power_w"] / 1000.0
+        cost_per_panel   = p["panel_power_w"] * p["cost_per_wp_usd"]
+        bat_gross        = (battery["cost_usd"] * battery_units * (1 + INSTALLATION_COST_RATE)) if battery else 0.0
+        cost_per_panel_gross = cost_per_panel * (1 + INSTALLATION_COST_RATE)
+        budget_for_pv    = max(0.0, budget_usd - bat_gross)
+        max_budget       = int(budget_for_pv // cost_per_panel_gross) if cost_per_panel_gross > 0 else 0
+
+        # Sizing: aim for 70 % offset as the budget-aware target
+        ann_prod_pp      = p_kw * irradiance * PR_PERFORMANCE_RATIO
+        panels_70        = math.ceil(annual_kwh * 0.70 / ann_prod_pp) if ann_prod_pp > 0 else 0
+        n_panels         = min(panels_70, max_budget, max_roof)
+
+        if n_panels < 1:
+            rows.append({
+                "rank":             None,
+                "manufacturer":     p["manufacturer"],
+                "model":            p["model"],
+                "n_panels":         0,
+                "system_kw_dc":     0.0,
+                "efficiency_pct":   p["efficiency_percent"],
+                "cost_per_wp_usd":  p["cost_per_wp_usd"],
+                "net_capex_usd":    0.0,
+                "annual_savings_usd": 0.0,
+                "payback_years":    None,
+                "npv_10yr_usd":     -999999.0,
+                "note":             "0 panels fit within roof/budget",
+            })
+            continue
+
+        pv_h  = build_hourly_pv_output(p, n_panels, irradiance)
+        disp  = run_dispatch_simulation(hourly_load, pv_h, tariffs, battery)
+        econ  = compute_economics(
+            disp, p, n_panels, battery, battery_units,
+            annual_kwh, avg_tariff,
+            with_battery=battery is not None,
+        )
+
+        rows.append({
+            "rank":               None,          # filled after sorting
+            "manufacturer":       p["manufacturer"],
+            "model":              p["model"],
+            "n_panels":           n_panels,
+            "system_kw_dc":       econ["system_kw_dc"],
+            "efficiency_pct":     p["efficiency_percent"],
+            "cost_per_wp_usd":    p["cost_per_wp_usd"],
+            "net_capex_usd":      econ["net_capex_after_itc_usd"],
+            "annual_savings_usd": econ["annual_savings_usd"],
+            "payback_years":      econ["simple_payback_years"],
+            "npv_10yr_usd":       econ["npv_usd"],
+            "note":               "",
+        })
+
+    # Sort by NPV descending; ties broken by annual savings
+    rows.sort(key=lambda r: (r["npv_10yr_usd"], r["annual_savings_usd"]), reverse=True)
+    for i, r in enumerate(rows):
+        r["rank"] = i + 1
+
+    return rows
+
+
+# ═══════════════════════════════════════════════════════════════
+#  ROOF LAYOUT HELPER
+# ═══════════════════════════════════════════════════════════════
+
+_PANEL_GAP_M = 0.02  # 2 cm between panels (racking clearance)
+
+
+def _compute_roof_layout(
+    roof_length_m: float,
+    roof_breadth_m: float,
+    panel_length_m: float,
+    panel_width_m: float,
+) -> Dict[str, Any]:
+    """
+    Compute how many panels fit on a rectangular roof in both
+    portrait and landscape orientations and return the better one.
+
+    Portrait  : panel long side (length_m) runs along roof_length.
+    Landscape : panel short side (width_m) runs along roof_length
+                (panel rotated 90°).
+
+    A 2 cm gap between adjacent panels is assumed for racking hardware.
+    """
+    gap = _PANEL_GAP_M
+
+    # Portrait: length along roof_length, width along roof_breadth
+    cols_p = int((roof_length_m  + gap) / (panel_length_m + gap))
+    rows_p = int((roof_breadth_m + gap) / (panel_width_m  + gap))
+    total_p = cols_p * rows_p
+
+    # Landscape: width along roof_length, length along roof_breadth
+    cols_l = int((roof_length_m  + gap) / (panel_width_m  + gap))
+    rows_l = int((roof_breadth_m + gap) / (panel_length_m + gap))
+    total_l = cols_l * rows_l
+
+    if total_p >= total_l:
+        return {
+            "orientation":         "portrait",
+            "panels_along_length": cols_p,
+            "panels_along_breadth": rows_p,
+            "max_panels_by_roof_dimensions": total_p,
+            "alt_orientation":     "landscape",
+            "alt_panels_along_length": cols_l,
+            "alt_panels_along_breadth": rows_l,
+            "alt_max_panels":      total_l,
+        }
+    else:
+        return {
+            "orientation":         "landscape",
+            "panels_along_length": cols_l,
+            "panels_along_breadth": rows_l,
+            "max_panels_by_roof_dimensions": total_l,
+            "alt_orientation":     "portrait",
+            "alt_panels_along_length": cols_p,
+            "alt_panels_along_breadth": rows_p,
+            "alt_max_panels":      total_p,
+        }
+
+
+# ═══════════════════════════════════════════════════════════════
 #  4J  ORCHESTRATOR
 # ═══════════════════════════════════════════════════════════════
 
@@ -618,7 +773,8 @@ def run_all_tools(
     num_people: int = 3,
     num_daytime_occupants: int = 1,
     budget_usd: float = 25000.0,
-    roof_area_m2: float = 50.0,
+    roof_length_m: float = 8.0,
+    roof_breadth_m: float = 6.25,
     rate_plan: str = "TOU_DR",
     panel_brand: str | None = None,
 ) -> Dict[str, Any]:
@@ -627,13 +783,18 @@ def run_all_tools(
     for injection into the LLM prompt.
 
     This is the single entry-point the pipeline calls.
-    """
-    # 4G: hardware selection
-    panel = select_panel(panel_brand)
-    panel_area = panel["area_m2"]
-    max_panels_by_roof = int(roof_area_m2 // panel_area)
 
-    # 4A: load profile
+    Parameters
+    ----------
+    roof_length_m, roof_breadth_m : float
+        Physical roof dimensions (metres).  Area = length × breadth.
+        Panels are laid out in both portrait and landscape orientations;
+        the orientation that fits more panels is used for sizing.
+    """
+    roof_area_m2 = round(roof_length_m * roof_breadth_m, 3)
+    auto_brand   = panel_brand is None           # track whether brand was auto-selected
+
+    # 4A: load profile (needed before brand comparison so all brands use same load)
     hourly_load, annual_kwh = load_household_profile_from_eia(
         latitude, longitude,
         num_evs=num_evs,
@@ -648,35 +809,81 @@ def run_all_tools(
     tariffs = build_hourly_tariffs(rate_plan, year=2024)
     avg_tariff = round(sum(tariffs) / len(tariffs), 4)
 
+    # nighttime load fraction – needed before battery selection and brand comparison
+    hrs_arr    = np.arange(8760) % 24
+    night_mask = (hrs_arr < 6) | (hrs_arr >= 20)
+    load_arr   = np.array(hourly_load)
+    nighttime_frac     = round(float(load_arr[night_mask].sum() / load_arr.sum()), 3) if load_arr.sum() > 0 else 0.0
+    battery_kwh_needed = nighttime_frac * annual_kwh / 365 if nighttime_frac > 0.30 else 0.0
+    battery      = select_battery(battery_kwh_needed)
+    battery_units = 1 if battery else 0
+
+    # 4G: brand selection — compare all brands by NPV when brand is auto
+    brand_comparison: Optional[List[Dict[str, Any]]] = None
+    if auto_brand:
+        brand_comparison = _compare_all_brands(
+            roof_length_m, roof_breadth_m,
+            budget_usd, annual_kwh, hourly_load,
+            tariffs, avg_tariff, irradiance,
+            battery, battery_units,
+        )
+        # Pick the NPV winner (rank 1)
+        best_row = brand_comparison[0]
+        panel = next(
+            (p for p in SOLAR_PANEL_CATALOG
+             if p["manufacturer"] == best_row["manufacturer"] and p["model"] == best_row["model"]),
+            None,
+        )
+        if panel is None:          # fallback – should never happen
+            panel = select_panel(None)
+    else:
+        panel = select_panel(panel_brand)
+
+    # Roof layout using actual panel dimensions
+    roof_layout = _compute_roof_layout(
+        roof_length_m, roof_breadth_m,
+        panel["length_m"], panel["width_m"],
+    )
+    max_panels_by_roof = roof_layout["max_panels_by_roof_dimensions"]
+
+    # Cell breakdown for the selected panel
+    cell_info = {
+        "cells_per_panel":   panel["cells"],
+        "cells_in_series":   panel["cells_in_series"],
+        "cells_in_parallel": panel["cells_in_parallel"],
+        "panel_length_m":    panel["length_m"],
+        "panel_width_m":     panel["width_m"],
+    }
+
     # sizing
     panel_kw = panel["panel_power_w"] / 1000.0
     annual_prod_per_panel = panel_kw * irradiance * PR_PERFORMANCE_RATIO
     panels_100 = math.ceil(annual_kwh / annual_prod_per_panel) if annual_prod_per_panel > 0 else 0
     panels_70  = math.ceil(annual_kwh * 0.70 / annual_prod_per_panel) if annual_prod_per_panel > 0 else 0
 
-    cost_per_panel = panel["panel_power_w"] * panel["cost_per_wp_usd"]
-    max_panels_by_budget = int(budget_usd // cost_per_panel) if cost_per_panel > 0 else 0
+    # Budget uses gross cost (incl. 10% install) so CAPEX <= budget pre-ITC
+    cost_per_panel       = panel["panel_power_w"] * panel["cost_per_wp_usd"]
+    bat_gross            = (battery["cost_usd"] * battery_units * (1 + INSTALLATION_COST_RATE)) if battery else 0.0
+    cost_per_panel_gross = cost_per_panel * (1 + INSTALLATION_COST_RATE)
+    budget_for_pv        = max(0.0, budget_usd - bat_gross)
+    max_panels_by_budget = int(budget_for_pv // cost_per_panel_gross) if cost_per_panel_gross > 0 else 0
 
     n_rec = min(panels_70, max_panels_by_budget, max_panels_by_roof)
     n_opt = min(panels_100, max_panels_by_roof)
 
-    # nighttime load fraction (for battery sizing)
-    hrs_arr = np.arange(8760) % 24
-    night_mask = (hrs_arr < 6) | (hrs_arr >= 20)
-    load_arr = np.array(hourly_load)
-    nighttime_frac = round(float(load_arr[night_mask].sum() / load_arr.sum()), 3) if load_arr.sum() > 0 else 0.0
-    battery_kwh_needed = nighttime_frac * annual_kwh / 365 if nighttime_frac > 0.30 else 0.0
-    battery = select_battery(battery_kwh_needed)
-    battery_units = 1 if battery else 0
-
     results: Dict[str, Any] = {
         "panel_selected": {
-            "manufacturer": panel["manufacturer"],
-            "model": panel["model"],
-            "power_w": panel["panel_power_w"],
-            "efficiency_pct": panel["efficiency_percent"],
-            "cost_per_wp_usd": panel["cost_per_wp_usd"],
-            "area_m2": panel["area_m2"],
+            "manufacturer":      panel["manufacturer"],
+            "model":             panel["model"],
+            "power_w":           panel["panel_power_w"],
+            "efficiency_pct":    panel["efficiency_percent"],
+            "cost_per_wp_usd":   panel["cost_per_wp_usd"],
+            "area_m2":           panel["area_m2"],
+            "length_m":          panel["length_m"],
+            "width_m":           panel["width_m"],
+            "cells_per_panel":   panel["cells"],
+            "cells_in_series":   panel["cells_in_series"],
+            "cells_in_parallel": panel["cells_in_parallel"],
         },
         "battery_selected": {
             "manufacturer": battery["manufacturer"],
@@ -697,12 +904,24 @@ def run_all_tools(
             "on_peak_avg": round(float(np.mean([tariffs[h] for h in range(8760) if 16 <= h % 24 < 21])), 4),
             "off_peak_avg": round(float(np.mean([tariffs[h] for h in range(8760) if not (16 <= h % 24 < 21)])), 4),
         },
+        "roof_summary": {
+            "roof_length_m":   round(roof_length_m, 3),
+            "roof_breadth_m":  round(roof_breadth_m, 3),
+            "roof_area_m2":    roof_area_m2,
+            **roof_layout,
+        },
         "sizing": {
-            "panels_for_100pct": panels_100,
-            "panels_for_70pct": panels_70,
-            "max_panels_by_roof": max_panels_by_roof,
-            "max_panels_by_budget": max_panels_by_budget,
+            "panels_for_100pct":         panels_100,
+            "panels_for_70pct":          panels_70,
+            "max_panels_by_roof":        max_panels_by_roof,
+            "max_panels_by_budget":      max_panels_by_budget,
             "annual_prod_per_panel_kwh": round(annual_prod_per_panel, 1),
+        },
+        "brand_selection": {
+            "mode":                 "auto" if auto_brand else "user_specified",
+            "selected_manufacturer": panel["manufacturer"],
+            "selected_model":        panel["model"],
+            "comparison_table":      brand_comparison,  # None when user specified a brand
         },
     }
 
@@ -711,6 +930,9 @@ def run_all_tools(
     disp_rec = run_dispatch_simulation(hourly_load, pv_rec, tariffs, battery)
     econ_rec = compute_economics(disp_rec, panel, n_rec, battery, battery_units,
                                  annual_kwh, avg_tariff, with_battery=battery is not None)
+    econ_rec["total_cells_on_roof"]      = n_rec * panel["cells"]
+    econ_rec["total_cells_in_series"]    = n_rec * panel["cells_in_series"]
+    econ_rec["total_cells_in_parallel"]  = n_rec * panel["cells_in_parallel"]
     results["recommended_scenario"] = econ_rec
 
     # 4F + 4H + 4I for optimal scenario (no battery to keep it simple)
@@ -718,6 +940,92 @@ def run_all_tools(
     disp_opt = run_dispatch_simulation(hourly_load, pv_opt, tariffs, None)
     econ_opt = compute_economics(disp_opt, panel, n_opt, None, 0,
                                  annual_kwh, avg_tariff, with_battery=False)
+    econ_opt["total_cells_on_roof"]      = n_opt * panel["cells"]
+    econ_opt["total_cells_in_series"]    = n_opt * panel["cells_in_series"]
+    econ_opt["total_cells_in_parallel"]  = n_opt * panel["cells_in_parallel"]
     results["optimal_scenario"] = econ_opt
+
+    # ── Battery analysis: always compare PV-only vs PV+battery ────────────────
+    # Uses the recommended panel count (n_rec) as the base.
+    # Always selects the most cost-effective battery regardless of the nighttime
+    # threshold so the LLM can make an informed add/skip decision.
+    nighttime_kwh_per_day = nighttime_frac * annual_kwh / 365.0
+
+    # Pick the battery to analyse (always pick one for comparison purposes)
+    bat_for_analysis = select_battery(max(nighttime_kwh_per_day, 4.0))
+
+    # PV-only baseline for n_rec panels
+    disp_pv_only = run_dispatch_simulation(hourly_load, pv_rec, tariffs, None)
+    econ_pv_only = compute_economics(disp_pv_only, panel, n_rec, None, 0,
+                                     annual_kwh, avg_tariff, with_battery=False)
+
+    # PV + battery for n_rec panels
+    if bat_for_analysis:
+        disp_with_bat = run_dispatch_simulation(hourly_load, pv_rec, tariffs, bat_for_analysis)
+        econ_with_bat = compute_economics(disp_with_bat, panel, n_rec,
+                                          bat_for_analysis, 1,
+                                          annual_kwh, avg_tariff, with_battery=True)
+
+        extra_savings_yr = round(
+            econ_with_bat["annual_savings_usd"] - econ_pv_only["annual_savings_usd"], 2
+        )
+        bat_net_cost = round(bat_for_analysis["cost_usd"] * (1.0 - FEDERAL_ITC_RATE), 2)
+        bat_incremental_payback = (
+            round(bat_net_cost / extra_savings_yr, 1)
+            if extra_savings_yr > 0 else None
+        )
+        # Reduced grid imports thanks to the battery
+        import_reduction_kwh = round(
+            econ_pv_only["annual_grid_energy_import_kwh"]
+            - econ_with_bat["annual_grid_energy_import_kwh"], 1
+        )
+        # Self-consumption: fraction of PV output consumed on-site
+        total_pv_kwh = n_rec * panel["panel_power_w"] / 1000.0 * irradiance * PR_PERFORMANCE_RATIO
+        self_cons_pct = round(
+            100.0 * (1.0 - econ_with_bat["annual_grid_energy_export_kwh"] / max(total_pv_kwh, 1)), 1
+        )
+
+        # Decision logic
+        if bat_incremental_payback is not None and bat_incremental_payback <= 12 and extra_savings_yr >= 250:
+            decision = "add_battery"
+        elif extra_savings_yr >= 100 and nighttime_kwh_per_day >= 3.0:
+            decision = "evaluate_later"
+        else:
+            decision = "pv_only"
+
+        bat_analysis: Dict[str, Any] = {
+            "battery_analysed": {
+                "manufacturer":    bat_for_analysis["manufacturer"],
+                "model":           bat_for_analysis["model"],
+                "capacity_kwh":    bat_for_analysis["usable_capacity_kwh"],
+                "gross_cost_usd":  bat_for_analysis["cost_usd"],
+                "net_cost_after_itc_usd": bat_net_cost,
+                "round_trip_efficiency_pct": bat_for_analysis["round_trip_efficiency_pct"],
+                "cycle_life":      bat_for_analysis["cycle_life"],
+            },
+            "pv_only_annual_savings_usd":        econ_pv_only["annual_savings_usd"],
+            "pv_only_annual_import_kwh":         econ_pv_only["annual_grid_energy_import_kwh"],
+            "pv_only_net_capex_usd":             econ_pv_only["net_capex_after_itc_usd"],
+            "pv_only_payback_years":             econ_pv_only["simple_payback_years"],
+            "pv_plus_battery_annual_savings_usd": econ_with_bat["annual_savings_usd"],
+            "pv_plus_battery_annual_import_kwh":  econ_with_bat["annual_grid_energy_import_kwh"],
+            "pv_plus_battery_net_capex_usd":      econ_with_bat["net_capex_after_itc_usd"],
+            "pv_plus_battery_payback_years":      econ_with_bat["simple_payback_years"],
+            "extra_annual_savings_usd":           extra_savings_yr,
+            "import_reduction_kwh":               import_reduction_kwh,
+            "self_consumption_pct_with_battery":  self_cons_pct,
+            "nighttime_load_kwh_per_day":         round(nighttime_kwh_per_day, 2),
+            "nighttime_load_fraction":            nighttime_frac,
+            "battery_incremental_payback_years":  bat_incremental_payback,
+            "decision":                           decision,
+        }
+    else:
+        bat_analysis = {
+            "battery_analysed": None,
+            "decision": "pv_only",
+            "note": "No suitable battery found in catalog for this load profile.",
+        }
+
+    results["battery_analysis"] = bat_analysis
 
     return results

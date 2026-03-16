@@ -16,6 +16,7 @@ import csv
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -199,6 +200,12 @@ def main() -> None:
             continue
 
         try:
+            ui = cfg.user_inputs
+            household_overrides = {
+                "num_people": ui.num_people,
+                "num_daytime_occupants": ui.num_daytime_occupants,
+                "num_evs": ui.num_evs,
+            }
             result = pipeline.run(
                 loc.name,
                 loc.latitude,
@@ -206,6 +213,8 @@ def main() -> None:
                 save=True,
                 output_dir=output_dir,
                 skip_extraction=args.skip_extraction,
+                household_overrides=household_overrides,
+                budget_usd=ui.budget_usd,
             )
             status = "ok" if result["valid"] else "validation_errors"
 
@@ -234,6 +243,10 @@ def main() -> None:
                 "status": "error",
                 "error": str(exc),
             })
+
+        # Brief cooldown between API calls to avoid rate-limit / connection-reset issues
+        if i < len(locations) and not args.dry_run:
+            time.sleep(2)
 
     # Print summary
     print("\n" + "=" * 60)

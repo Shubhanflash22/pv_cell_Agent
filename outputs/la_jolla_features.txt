@@ -26,17 +26,17 @@ ELECTRICITY CONSUMPTION SUMMARY
 
 SOLAR POTENTIAL SUMMARY
 ----------------------------------------
-  Avg weekly irradiance           : 217.76 W/m2
+  Avg weekly irradiance           : 217.72 W/m2
   Est daily peak sun hours        : 1.74 hrs
   Est annual sunlight hours       : 635.10 hrs
-  Seasonal irradiance index       : Autumn=0.93  Spring=1.03  Summer=0.99  Winter=1.05
-  Irradiance variance             : 4,764.67
-  Temp <> irradiance correlation   : 0.5865
+  Seasonal irradiance index       : Autumn=0.94  Spring=1.03  Summer=0.98  Winter=1.05
+  Irradiance variance             : 4,763.96
+  Temp <> irradiance correlation   : 0.5873
   Weeks above PV optimal temp     : 1
-  Cloudy-week frequency           : 9.96%
+  Cloudy-week frequency           : 9.58%
   Sunlight consistency (CV)       : 0.3170
-  Consumption <> irradiance corr   : -0.4870
-  Lag correlations                : lag0=-0.487, lag1=-0.436, lag2=-0.385, lag3=-0.316, lag4=-0.239
+  Consumption <> irradiance corr   : -0.5341
+  Lag correlations                : lag0=-0.534, lag1=-0.487, lag2=-0.436, lag3=-0.385, lag4=-0.316
 
 HOUSEHOLD SUMMARY
 ----------------------------------------
