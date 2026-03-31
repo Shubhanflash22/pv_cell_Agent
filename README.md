@@ -796,5 +796,3 @@ python workflow.py --skip-extraction
 | **TOU**                    | Time-of-Use — electricity pricing that changes by hour of day                           |
 | **TOU-DR / DR1 / DR2**     | Three SDG&E residential TOU rate plans with different peak windows                      |
 | **Wp**                     | Watt-peak — panel power rating under standard test conditions                           |
-
-
