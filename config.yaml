@@ -4,7 +4,7 @@
 
 llm:
   backend: xai
-  model: grok-4-1-fast-non-reasoning  # fastest xAI model, no reasoning needed for JSON formatting
+  model: grok-4-1-fast-reasoning  # fastest xAI model, no reasoning needed for JSON formatting
   host: https://api.x.ai/v1
   max_tokens: 2048                    # recommendation JSON can exceed 1000 tokens; 1024 caused truncation
   temperature: 0.1                    # near-deterministic: the LLM just copies pre-computed values

@@ -9,21 +9,24 @@ A homeowner enters a handful of inputs, and the system:
 3. Presents the result in a conversational chatbot with follow-up Q&A
 4. Exports the entire conversation as a PDF
 
-The project can be used in two ways:
+The project can be used in several ways — from an interactive UI to batch and benchmark suites.
 
-
-| Mode                  | What it does                                                                            | Entry point             |
-| --------------------- | --------------------------------------------------------------------------------------- | ----------------------- |
-| **Chatbot UI**        | Interactive web app — enter inputs, get a recommendation, ask follow-up questions       | `python chatbot.py`     |
-| **Batch workflow**    | Run the pipeline for 30 San Diego locations headlessly and save JSON + text reports     | `python workflow.py`    |
-| **Grid evaluation**   | Sweep num_evs, num_people, num_daytime across 3 locations (54 runs) and collect results | `python grid_eval.py`   |
-| **Grid evaluation 1** | Sweep roof dimensions, budget, panel brand across 3 locations (243 runs)                | `python grid_eval_1.py` |
-
+| Mode | What it does | Entry point |
+|------|--------------|-------------|
+| **Chatbot UI** | Interactive web app — recommendation + follow-up Q&A + PDF export | `python chatbot.py` |
+| **Batch workflow** | Run the pipeline for every row in `data/locations.csv` (JSON + text reports) | `python workflow.py` |
+| **Grid evaluation** | Sweep household params (`num_evs`, `num_people`, `num_daytime`) across 3 locations (**72** runs) | `python grid_eval.py` |
+| **Grid evaluation 1** | Sweep roof size, budget, panel brand across 3 locations (**243** runs) | `python grid_eval_1.py` |
+| **Benchmark CSV** | Run scenarios from a benchmark spreadsheet; append structured columns to a results CSV | `python benchmark_pipeline.py` |
+| **Manifest + plots** | Join manifest with `.txt` outputs; generate scatter plots from saved grids | `build_grid_summary.py`, `output_*/plot_results.py` |
 
 ---
 
 ## Table of Contents
 
+0. [Complete setup (venv, API key, verify)](#0-complete-setup-venv-api-key-verify)
+0b. [Running the project — all modes](#0b-running-the-project--all-modes)
+0c. [Analyzing results & inference](#0c-analyzing-results--inference)
 1. [Project Architecture](#1-project-architecture)
 2. [How the Recommendation is Built](#2-how-the-recommendation-is-built)
 3. [File-by-File Guide](#3-file-by-file-guide)
@@ -40,6 +43,172 @@ The project can be used in two ways:
 
 ---
 
+## 0. Complete setup (venv, API key, verify)
+
+Do this once per machine (from the repository root).
+
+### Python version
+
+Use **Python 3.10+** (3.11/3.12/3.14 are fine).
+
+### Create and activate a virtual environment
+
+```bash
+cd 285_Agentic_Workflow   # or your clone path
+
+python3 -m venv .venv
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Windows (Command Prompt)
+.venv\Scripts\activate.bat
+
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+```
+
+You should see `(.venv)` in your shell prompt.
+
+### Install dependencies
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Optional (only if you run plotting scripts under `output_1/` or `output_2/`):
+
+```bash
+pip install matplotlib
+```
+
+### xAI API key
+
+The code reads the key from the environment variable named in `config.yaml` (`xai.api_key_env`, default **`XAI_API_KEY`**).
+
+**Session only (current terminal):**
+
+```bash
+# macOS / Linux
+export XAI_API_KEY="xai-your-key-here"
+
+# Windows PowerShell
+$env:XAI_API_KEY = "xai-your-key-here"
+
+# Windows CMD
+set XAI_API_KEY=xai-your-key-here
+```
+
+**Persist on macOS/Linux (zsh):**
+
+```bash
+echo 'export XAI_API_KEY="xai-your-key-here"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Get a key at [x.ai/api](https://x.ai/api).
+
+### Quick verification
+
+```bash
+# Must not print "xAI API key not found"
+python -c "from config import load_config; c=load_config(); c.validate(); print('config OK')"
+```
+
+Dry-run the batch workflow (no LLM cost — features only):
+
+```bash
+python workflow.py --dry-run --location "La Jolla"
+```
+
+---
+
+## 0b. Running the project — all modes
+
+From the repo root, with `.venv` activated and `XAI_API_KEY` set (except `--dry-run` where noted).
+
+| Goal | Command |
+|------|---------|
+| **Chatbot** (default [http://localhost:7860](http://localhost:7860)) | `python chatbot.py` |
+| **All locations** in `data/locations.csv` | `python workflow.py` |
+| **One location** by name | `python workflow.py --location "La Jolla"` |
+| **Batch, reuse CSVs** (no Open-Meteo fetch) | `python workflow.py --skip-extraction` |
+| **Batch, custom output dir** | `python workflow.py --output-dir ./my_outputs` |
+| **Batch, no LLM** (features only) | `python workflow.py --dry-run` |
+| **Custom config** | `python workflow.py --config my.yaml` (same `--config` works for other scripts) |
+| **Grid eval (72 runs)** → `output_1/` | `python grid_eval.py` |
+| **Grid eval, resume** | `python grid_eval.py --resume-from 40 --skip-extraction` |
+| **Grid eval 1 (243 runs)** → `output_2/` | `python grid_eval_1.py` |
+| **Grid eval 1, resume** | `python grid_eval_1.py --resume-from 100 --skip-extraction` |
+| **Benchmark CSV** | `python benchmark_pipeline.py` |
+| **Benchmark, custom paths** | `python benchmark_pipeline.py --benchmark-csv data/benchmark/my.csv --output-csv outputs/benchmark/out.csv` |
+| **Benchmark, no LLM** | `python benchmark_pipeline.py --dry-run` |
+| **Join manifest + `.txt` → enriched CSV** | `python build_grid_summary.py` (writes `output_1/grid_manifest_with_outputs.csv` and `output_2/...` if manifests exist) |
+| **Plots from grid CSV** | `cd output_1 && python plot_results.py` (expects `grid_manifest_with_outputs.csv`, writes `images/solar_analysis_plots.png`) |
+| **Methodology .docx** | From repo root: `python scripts/generate_methodology_report.py` → writes `outputs/SolarInvest_Methodology_Report.docx` |
+
+**Cooling down:** `grid_eval.py` and `grid_eval_1.py` sleep ~2 seconds between API calls to reduce rate limits.
+
+---
+
+## 0c. Analyzing results & inference
+
+After a grid or benchmark run, you usually want **summary stats**, **plots**, or **error rates** — not another LLM call.
+
+### Grid manifests
+
+- `output_1/grid_manifest.csv` — one row per `grid_eval.py` run (`file_num` … `status`).
+- `output_2/grid_manifest.csv` — same for `grid_eval_1.py`.
+
+`status` is typically `ok`, `validation_errors` (JSON parsed but schema check failed), or `error` (uncaught pipeline failure for that cell).
+
+### Enriched CSV (`grid_manifest_with_outputs.csv`)
+
+Builds a single CSV with every manifest column plus a full `output_text` column (contents of `{file_num}.txt`):
+
+```bash
+python build_grid_summary.py
+```
+
+Outputs:
+
+- `output_1/grid_manifest_with_outputs.csv`
+- `output_2/grid_manifest_with_outputs.csv`
+
+(if the corresponding `grid_manifest.csv` exists).
+
+### Plots (panels, CAPEX, household variables)
+
+Example driver: `output_1/plot_results.py` (and `output_2/plot_results.py`). It reads `grid_manifest_with_outputs.csv` beside the script, drops rows whose `output_text` starts with `ERROR`, derives numeric columns with regex, and saves a multi-panel figure under `images/`.
+
+```bash
+cd output_1
+python plot_results.py
+# → images/solar_analysis_plots.png
+```
+
+Install **matplotlib** if needed.
+
+### Inference with pandas (examples)
+
+```python
+import pandas as pd
+
+df = pd.read_csv("output_1/grid_manifest.csv")
+print(df["status"].value_counts())
+
+# Success rate (schema-valid JSON)
+print((df["status"] == "ok").mean() * 100)
+
+# Safe completion rate (any non-error output written)
+print((df["status"] != "error").mean() * 100)
+```
+
+For **ground-truth comparison** (NPV, payback vs `pv_tools`): the pipeline computes tool results before the LLM; they are in-memory in `Pipeline.run()` as `result["tool_results"]`. To audit systematically, add logging or a small script that calls `run_all_tools()` with the same `user_inputs` and compares to parsed `recommendation` fields — the repo does not persist `tool_results` inside the grid `.txt` files by default.
+
+---
+
 ## 1. Project Architecture
 
 ```
@@ -49,7 +218,8 @@ The project can be used in two ways:
                                 │  inputs
                                 ▼
   ┌──────────────────────────────────────────────────────────────────┐
-  │  chatbot.py | workflow.py | grid_eval.py | grid_eval_1.py   │
+  │  chatbot.py | workflow.py | grid_eval.py | grid_eval_1.py |     │
+  │  benchmark_pipeline.py | build_grid_summary.py                   │
   └─────────────────────────────┬────────────────────────────────────┘
                                 │  calls Pipeline.run()
                                 ▼
@@ -167,10 +337,9 @@ Hard rules include checks like:
 
 **Step 5 — LLM inference** (`grok_backend.py`)
 
-The assembled prompt is sent to `grok-3-fast` via the xAI API (OpenAI SDK
-with `base_url="https://api.x.ai/v1"`).  The backend:
+The assembled prompt is sent to the model named in `config.yaml` (e.g. `grok-4-1-fast-reasoning`) via the xAI API (OpenAI SDK with `base_url="https://api.x.ai/v1"`). The backend:
 
-- Has a 5-minute timeout per request
+- Uses `timeout_s` from `config.yaml` (default 120 seconds)
 - Retries up to 3× on transient failures (exponential backoff, no SDK double-retry)
 - Validates the JSON response against the schema
 - Makes one repair attempt if validation fails
@@ -201,8 +370,10 @@ Two render functions:
 │
 ├── chatbot.py                  Main chatbot UI (Gradio)
 ├── workflow.py                 Batch CLI runner for all locations
-├── grid_eval.py                Grid evaluation — sweeps num_evs, num_people, num_daytime
-├── grid_eval_1.py              Grid evaluation 1 — sweeps roof, budget, panel brand
+├── grid_eval.py                Grid evaluation — sweeps num_evs, num_people, num_daytime (72 runs → output_1)
+├── grid_eval_1.py              Grid evaluation 1 — sweeps roof, budget, panel brand (243 runs → output_2)
+├── benchmark_pipeline.py       Benchmark runner — CSV scenarios → results CSV
+├── build_grid_summary.py       Builds grid_manifest_with_outputs.csv for output_1 / output_2
 ├── pipeline.py                 Orchestrates all 7 pipeline steps
 │
 ├── config.yaml                 All configuration (edit this to change behaviour)
@@ -243,8 +414,10 @@ Two render functions:
 │   └── solarinvest.js          Time-of-day sky animation
 │
 ├── outputs/                    Batch workflow writes reports here
-├── output_1/                   grid_eval.py writes reports + manifest CSV here
-├── output_2/                   grid_eval_1.py writes reports + manifest CSV here
+├── output_1/                   grid_eval.py: reports, grid_manifest.csv, plot_results.py, images/
+├── output_2/                   grid_eval_1.py: reports, grid_manifest.csv, plot_results.py
+├── scripts/
+│   └── generate_methodology_report.py   Optional .docx methodology report
 └── requirements.txt
 ```
 
@@ -383,39 +556,7 @@ The LLM must return a JSON object with four top-level keys:
 
 ## 8. Quick Start (Chatbot UI)
 
-### Prerequisites
-
-- Python 3.10 or newer
-- An **xAI API key** — get one at [x.ai/api](https://x.ai/api)
-
-### Installation
-
-```bash
-# 1. Clone the repository
-git clone <your-repo-url>
-cd 285_Agentic_Workflow
-
-# 2. (Recommended) Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # macOS / Linux
-# .venv\Scripts\activate         # Windows
-
-# 3. Install all dependencies
-pip install -r requirements.txt
-```
-
-### Set your API key
-
-```bash
-# macOS / Linux
-export XAI_API_KEY="xai-xxxxxxxxxxxxxxxxxxxxxxxx"
-
-# Windows Command Prompt
-set XAI_API_KEY=xai-xxxxxxxxxxxxxxxxxxxxxxxx
-
-# Windows PowerShell
-$env:XAI_API_KEY = "xai-xxxxxxxxxxxxxxxxxxxxxxxx"
-```
+For **venv, `pip install`, and `XAI_API_KEY`**, see [§0 Complete setup](#0-complete-setup-venv-api-key-verify).
 
 ### Launch the chatbot
 
@@ -493,7 +634,7 @@ The batch workflow runs the pipeline for all 30 San Diego locations listed in
 `data/locations.csv` and saves reports to `outputs/`.
 
 ```bash
-# Make sure XAI_API_KEY is set (see §8 above)
+# Make sure XAI_API_KEY is set (see §0)
 
 # Run all 30 locations
 python workflow.py
@@ -559,14 +700,14 @@ locations. Budget, roof dimensions, and rate plan are held constant.
 | `panel_brand`    | Auto (null) |
 
 
-Total valid combinations: **54** (3 locations x 18 valid combos per location).
+Total valid combinations: **72** (3 locations × 3 values of `num_evs` × 8 valid `(num_people, num_daytime_occupants)` pairs where `num_daytime_occupants ≤ num_people`).
 
 ### Running it
 
 ```bash
-# Make sure XAI_API_KEY is set (see section 8 above)
+# Make sure XAI_API_KEY is set (see §0)
 
-# Run the full grid (54 LLM calls, ~2 min each with cooldown)
+# Run the full grid (72 LLM calls; ~2 s sleep between runs by default)
 python grid_eval.py
 
 # Resume from a specific index after an interruption
@@ -589,7 +730,13 @@ output_1/
 ├── 1.txt                   # Report for combination 1
 ├── 2.txt                   # Report for combination 2
 ├── ...
-└── 54.txt                  # Report for combination 54
+└── 72.txt                  # Report for combination 72
+```
+
+To merge manifests with full report text into `grid_manifest_with_outputs.csv`, run from the repo root:
+
+```bash
+python build_grid_summary.py
 ```
 
 `**grid_manifest.csv**` columns:
@@ -660,28 +807,33 @@ python grid_eval_1.py --resume-from 50 --skip-extraction
 
 ## 11. Configuration Reference
 
-All settings live in `config.yaml`. You never need to edit Python files to
-change behaviour.
+All settings live in `config.yaml`. You **edit this file** to change model, timeouts, prompts, defaults, and paths.
+
+### Key fields (abridged — see `config.yaml` for the full file)
 
 ```yaml
 llm:
-  model: grok-3-fast          # xAI model name
-  max_tokens: 6144            # max output tokens
-  temperature: 0.2            # lower = more deterministic
+  backend: xai
+  model: grok-4-1-fast-reasoning   # xAI model id
+  host: https://api.x.ai/v1
+  max_tokens: 2048
+  temperature: 0.1
 
 xai:
-  api_key_env: XAI_API_KEY    # name of the env var holding your key
-  use_structured_output: false
-  timeout_s: 300              # seconds before a request is abandoned
+  api_key_env: XAI_API_KEY         # environment variable name for your key
+  use_structured_output: false    # true → JSON schema + optional repair in grok_backend
+  response_format: json_schema
+  timeout_s: 120
 
 prompt:
-  max_prompt_chars: 24000     # hard truncation to keep cost down
-  system_prompt: >            # what the LLM is told it is
+  max_prompt_chars: 24000
+  system_prompt: >                 # initial recommendation behaviour
+  followup_system_prompt: >        # chat advisor behaviour
 
 features:
-  panel_watt_peak: 400        # default Wp (overridden by catalog)
-  system_derate: 0.82         # AC/DC derate factor
-  cost_per_watt_usd: 3.00     # fallback installed $/W
+  panel_watt_peak: 400
+  system_derate: 0.82
+  cost_per_watt_usd: 3.00
   electricity_rate_usd_kwh: 0.35
   annual_degradation: 0.005
   system_lifetime_years: 25
@@ -691,7 +843,10 @@ paths:
   output_dir: outputs
   locations_file: data/locations.csv
 
-user_inputs:                  # defaults used by the batch workflow
+extraction:
+  years_back: 1                    # weather history depth (smaller = faster)
+
+user_inputs:                       # defaults for batch workflow / UI
   latitude: 32.7157
   longitude: -117.1611
   num_evs: 0
@@ -701,8 +856,10 @@ user_inputs:                  # defaults used by the batch workflow
   roof_length_m: 8.0
   roof_breadth_m: 6.25
   rate_plan: TOU_DR
-  panel_brand: null           # null = auto-optimize
+  panel_brand: null              # null = auto-optimize
 ```
+
+`WorkflowConfig.validate()` checks that `XAI_API_KEY` is set unless you use `--dry-run`.
 
 ---
 
@@ -756,7 +913,7 @@ The xAI API can be slow under load. The timeout is set to 5 minutes and
 the backend retries up to 3×. If it consistently times out:
 
 1. Check [status.x.ai](https://status.x.ai) for outages.
-2. Try a different model in `config.yaml`, e.g. `grok-3-mini-fast`.
+2. Try a different model in `config.yaml` (see [xAI models](https://docs.x.ai/docs/models)).
 
 ---
 
