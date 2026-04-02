@@ -1,0 +1,157 @@
+============================================================
+  SOLAR PV SIZING REPORT
+============================================================
+
+============================================================
+  1. OPTIMAL SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  The optimal scenario uses 28 panels for maximum offset
+  within roof constraints (max 112 panels), achieving
+  21,431 kWh annual production against 20,866 kWh
+  consumption. It delivers $4,963.93 annual savings with
+  7-year payback and $2,432.70 NPV over 10 years, ignoring
+  budget limits.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   28
+  System size (kW DC):      12.88
+  Target offset:            69%
+  Confidence:               90%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         21,431 kWh
+  Annual consumption used:   20,866 kWh
+  Annual savings:            $4,964
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $53,130
+  Payback period:    7.0 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $10,000
+  Max panels within budget:  5
+  Budget binding?            No
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          460 W
+  System derate:     0.8
+  Electricity rate:  $3.75/kWh
+
+RISKS
+------------------------------------------------------------
+  1. NEM 3.0 export credit may change
+  2. Utility escalation assumed 6%/yr
+  3. Roof shading not verified
+  4. Panel degradation over 10 years
+
+============================================================
+  2. RECOMMENDED SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  The recommended scenario respects the $10,000 budget
+  limit (max 5 panels) while providing $1,892.88 annual
+  savings and 7-year payback. This budget-constrained
+  system fits the 225 m² roof easily and uses the
+  user-preferred Aiko Solar panels.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   5
+  System size (kW DC):      2.30
+  Target offset:            11%
+  Confidence:               90%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         3,827 kWh
+  Annual consumption used:   20,866 kWh
+  Annual savings:            $1,893
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $22,138
+  Payback period:    7.0 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $10,000
+  Max panels within budget:  5
+  Budget binding?            Yes
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          460 W
+  System derate:     0.8
+  Electricity rate:  $3.75/kWh
+
+RISKS
+------------------------------------------------------------
+  1. NEM 3.0 export credit may change
+  2. Utility escalation assumed 6%/yr
+  3. Limited offset (11%) due to budget constraint
+
+============================================================
+  3. BATTERY RECOMMENDATION
+============================================================
+
+  Decision: ✘  PV ONLY — battery does not pay off at current rates
+
+BATTERY SPECS
+------------------------------------------------------------
+  Make / Model:       Tesla Powerwall 3
+  Capacity:           13.5 kWh
+  Gross cost:         $11,500
+  Net cost (30% ITC): $8,050
+
+FINANCIAL IMPACT OF ADDING BATTERY
+------------------------------------------------------------
+  Extra annual savings:      $33/yr
+  Grid import reduction:     75 kWh/yr
+  Self-consumption (w/ bat): 100.0%
+  Battery-only payback:      246.0 years
+
+RATIONALE
+------------------------------------------------------------
+  Battery adds only $32.72 extra annual savings but costs
+  $8,050 net, yielding 246-year incremental payback.
+  Nighttime load is 50.4% but self-consumption reaches
+  100% with minimal import reduction of 75.1 kWh/yr.
+  PV-only is recommended as battery economics are poor.
+
+============================================================
+  4. PANEL BRAND RECOMMENDATION
+============================================================
+
+  Selection mode    : user_specified
+  Selected          : Aiko Solar Neostar 2P
+
+  User specified preferred panel brand Aiko Solar Neostar 2P (460W, 24.3%
+  efficiency, $3.75/Wp). This high-efficiency panel fits 112 panels max on
+  the 225 m² roof in portrait orientation.
+
+============================================================
+  EVIDENCE
+============================================================
+
+  1. [tool_results] Panels for 100% offset : 28
+  2. [tool_results] Max by roof dimensions : 112
+  3. [tool_results] Max by budget : 5
+  4. [tool_results] Prod per panel/yr : 765.4 kWh
+  5. [tool_results] Annual consumption : 20,866.4 kWh
+  6. [tool_results] Gross CAPEX : $53,130.00 (optimal)
+  7. [tool_results] Annual savings : $4,963.93 (optimal)
+  8. [catalog] Aiko Solar Neostar 2P 24.3% $3.75/Wp 460Wp 1.89 m²
+  9. [user_inputs] Budget (pre-ITC) : 10000 USD
+  10. [tool_results] TOOL DECISION : PV_ONLY
+
+============================================================

@@ -1,0 +1,161 @@
+============================================================
+  SOLAR PV SIZING REPORT
+============================================================
+
+============================================================
+  1. OPTIMAL SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  Optimal scenario maximizes technical performance within
+  roof constraints at 21 panels (8.51 kW DC), achieving
+  the highest feasible offset given 50 m² roof area limit.
+  Matches max panels by roof dimensions. Prioritizes
+  production over budget.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   21
+  System size (kW DC):      8.51
+  Target offset:            21%
+  Confidence:               90%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         14,156 kWh
+  Annual consumption used:   39,840 kWh
+  Annual savings:            $4,799
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $26,663
+  Payback period:    5.0 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $25,000
+  Max panels within budget:  21
+  Budget binding?            No
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          405 W
+  System derate:     0.8
+  Electricity rate:  $0.4951/kWh
+
+RISKS
+------------------------------------------------------------
+  1. NEM 3.0 export credit may change
+  2. Utility escalation assumed 6%/yr
+  3. Roof shading not verified
+  4. Actual production may vary from 673.9 kWh/panel estimate
+
+============================================================
+  2. RECOMMENDED SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  Recommended scenario incorporates battery storage with
+  21 panels, delivering $6,903.62 annual savings and
+  5-year payback while respecting $25,000 budget (net
+  CAPEX $27,519.22 exceeds gross budget but reflects ITC
+  timing). Balances budget, roof capacity, and battery
+  optimization.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   21
+  System size (kW DC):      8.51
+  Target offset:            36%
+  Confidence:               90%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         14,156 kWh
+  Annual consumption used:   39,840 kWh
+  Annual savings:            $6,904
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $39,313
+  Payback period:    5.0 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $25,000
+  Max panels within budget:  21
+  Budget binding?            No
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          405 W
+  System derate:     0.8
+  Electricity rate:  $0.4951/kWh
+
+RISKS
+------------------------------------------------------------
+  1. NEM 3.0 export credit may change
+  2. Utility escalation assumed 6%/yr
+  3. Roof shading not verified
+  4. Battery degradation 1%/yr may impact long-term savings
+
+============================================================
+  3. BATTERY RECOMMENDATION
+============================================================
+
+  Decision: ✔  ADD BATTERY — recommended
+
+BATTERY SPECS
+------------------------------------------------------------
+  Make / Model:       Tesla Powerwall 3
+  Capacity:           13.5 kWh
+  Gross cost:         $11,500
+  Net cost (30% ITC): $8,050
+
+FINANCIAL IMPACT OF ADDING BATTERY
+------------------------------------------------------------
+  Extra annual savings:      $2,104/yr
+  Grid import reduction:     4,918 kWh/yr
+  Self-consumption (w/ bat): 87.5%
+  Battery-only payback:      3.8 years
+
+RATIONALE
+------------------------------------------------------------
+  Battery addition delivers $2,104.28 extra annual
+  savings with 3.8-year incremental payback, reducing grid
+  import by 4,918.5 kWh/yr. Achieves 87.5%
+  self-consumption given 74.1% nighttime load fraction.
+  TOOL DECISION: ADD_BATTERY.
+
+============================================================
+  4. PANEL BRAND RECOMMENDATION
+============================================================
+
+  Selection mode    : auto
+  Selected          : REC Group Alpha Pure
+  NPV rank          : #1
+  NPV vs. runner-up : $502
+
+  REC Group Alpha Pure wins auto-selection with highest 10-year NPV of
+  $25,757 (#1 rank), beating JA Solar DeepBlue runner-up by $502. Offers
+  22.6% efficiency at $2.85/Wp, enabling 21-panel system (8.51 kW) within
+  roof constraints. All top brands achieve 5.0-year payback.
+
+============================================================
+  EVIDENCE
+============================================================
+
+  1. [tool_results] Auto-selected winner : #1 REC Group Alpha Pure  NPV $25,757
+  2. [tool_results] Runner-up             : #2 JA Solar DeepBlue  NPV $25,254  (gap: $502)
+  3. [tool_results] RECOMMENDED SCENARIO ... Annual savings     : $6,903.62
+  4. [tool_results] OPTIMAL SCENARIO ... Annual savings     : $4,799.34
+  5. [tool_results] Extra annual savings from battery : $2,104.28/yr
+  6. [tool_results] Battery incremental payback       : 3.8 years
+  7. [tool_results] Annual consumption : 39,840.3 kWh
+  8. [tool_results] Prod per panel/yr       : 673.9 kWh
+  9. [catalog] REC Group | Alpha Pure | 22.6 | 2.85 | -0.26 | 405 | 1.79
+  10. [user_inputs] Budget (pre-ITC)                            : 25000 USD
+
+============================================================

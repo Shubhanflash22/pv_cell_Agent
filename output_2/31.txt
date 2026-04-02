@@ -1,0 +1,2 @@
+ERROR for La_Jolla_31:
+HTTPSConnectionPool(host='archive-api.open-meteo.com', port=443): Read timed out. (read timeout=120)

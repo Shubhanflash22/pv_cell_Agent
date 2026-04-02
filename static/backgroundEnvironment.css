@@ -1,0 +1,184 @@
+/* ═══════════════════════════════════════════════════════════════
+   SolarInvest – Background Environment
+   Dynamic sky layer (Apple Weather / Tesla Energy / Linear style)
+   Non-destructive: position fixed, z-index -1, pointer-events none
+   ═══════════════════════════════════════════════════════════════ */
+
+#sky-environment {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Body: transparent so sky-environment shows through */
+body.solarinvest-bg-active,
+body:has(#sky-environment) {
+    background: transparent !important;
+}
+
+/* ── Morning / Afternoon ──────────────────────────────────────── */
+.sky-env-morning,
+.sky-env-afternoon {
+    background: linear-gradient(
+        180deg,
+        #87CEFA 0%,
+        #B7E3FF 40%,
+        #F5F7FA 100%
+    );
+    background-attachment: fixed;
+}
+
+.sky-env-morning .env-sun,
+.sky-env-afternoon .env-sun {
+    position: absolute;
+    right: 12%;
+    top: 14%;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fffef5 0%, #ffeaa7 40%, rgba(255, 234, 167, 0.4) 100%);
+    box-shadow: 0 0 50px 18px rgba(255, 234, 167, 0.2),
+                0 0 100px 40px rgba(255, 234, 167, 0.08);
+    animation: envPulseGlow 8s ease-in-out infinite alternate;
+}
+
+@keyframes envPulseGlow {
+    0%   { opacity: 0.92; transform: scale(1); }
+    100% { opacity: 1;   transform: scale(1.04); }
+}
+
+/* ── Sunset ──────────────────────────────────────────────────── */
+.sky-env-sunset {
+    background: linear-gradient(
+        180deg,
+        #FF9966 0%,
+        #FF5E62 40%,
+        #2C3E50 100%
+    );
+    background-attachment: fixed;
+}
+
+.sky-env-sunset .env-sun {
+    position: absolute;
+    right: 18%;
+    bottom: 22%;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffd89b 0%, #ff9a56 50%, rgba(255, 94, 98, 0.3) 100%);
+    box-shadow: 0 0 60px 25px rgba(255, 158, 86, 0.25),
+                0 0 120px 50px rgba(255, 94, 98, 0.12);
+    animation: envPulseGlow 8s ease-in-out infinite alternate;
+}
+
+.sky-env-sunset .env-sunset-glow {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 45%;
+    background: linear-gradient(to top, rgba(255, 94, 98, 0.15), transparent);
+    pointer-events: none;
+}
+
+/* ── Night ───────────────────────────────────────────────────── */
+.sky-env-night {
+    background: linear-gradient(
+        180deg,
+        #0F2027 0%,
+        #203A43 50%,
+        #2C5364 100%
+    );
+    background-attachment: fixed;
+}
+
+.env-stars {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.env-star {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    animation: envTwinkle 4s ease-in-out infinite alternate;
+}
+
+@keyframes envTwinkle {
+    0%   { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.env-meteor {
+    position: absolute;
+    width: 2px;
+    height: 80px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.9), transparent);
+    border-radius: 2px;
+    transform-origin: top left;
+    animation: envMeteor 1.2s ease-out forwards;
+    opacity: 0.7;
+}
+
+@keyframes envMeteor {
+    0% {
+        transform: translateX(0) translateY(0) rotate(-45deg);
+        opacity: 0.7;
+    }
+    100% {
+        transform: translateX(-200px) translateY(200px) rotate(-45deg);
+        opacity: 0;
+    }
+}
+
+/* ── Clouds (morning / afternoon / sunset) ────────────────────── */
+.env-cloud {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 50px;
+    filter: blur(6px);
+    animation: envDriftClouds 120s linear infinite;
+}
+
+.env-cloud-sunset {
+    background: rgba(255, 200, 180, 0.2);
+}
+
+.env-clouds-wrap {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.env-cloud-1 { width: 220px; height: 42px; top: 8%;  left: -250px; }
+.env-cloud-2 { width: 180px; height: 32px; top: 18%; left: -180px; opacity: 0.7; }
+.env-cloud-3 { width: 260px; height: 38px; top: 5%;  left: -300px; opacity: 0.6; }
+.env-cloud-4 { width: 150px; height: 28px; top: 25%; left: -150px; opacity: 0.5; }
+.env-cloud-5 { width: 200px; height: 35px; top: 12%; left: -220px; opacity: 0.65; }
+.env-cloud-6 { width: 170px; height: 30px; top: 22%; left: -190px; opacity: 0.55; }
+.env-cloud-7 { width: 240px; height: 40px; top: 3%;  left: -270px; opacity: 0.5; }
+
+@keyframes envDriftClouds {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(calc(100vw + 400px)); }
+}
+
+/* ── Glassmorphism reinforcement for UI cards ──────────────────
+   Ensures readability over dynamic backgrounds. No layout changes. */
+#solarinvest-input-form,
+#solarinvest-results-col,
+#solarinvest-chat-section,
+#solarinvest-landing-page {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.78) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+}

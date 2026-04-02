@@ -1,0 +1,157 @@
+============================================================
+  SOLAR PV SIZING REPORT
+============================================================
+
+============================================================
+  1. OPTIMAL SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  Optimal scenario uses maximum 20 panels fitting the
+  50m² roof (5 columns × 4 rows portrait orientation),
+  achieving 8.1 kW DC with $4,521.41 annual savings and
+  4-year payback despite exceeding the $5,000 budget. This
+  maximizes offset within physical roof constraints while
+  delivering strong $19,675.64 NPV over 10 years.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   20
+  System size (kW DC):      8.10
+  Target offset:            38%
+  Confidence:               90%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         13,478 kWh
+  Annual consumption used:   21,183 kWh
+  Annual savings:            $4,521
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $25,394
+  Payback period:    4.0 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $5,000
+  Max panels within budget:  4
+  Budget binding?            No
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          405 W
+  System derate:     0.8
+  Electricity rate:  $0.4951/kWh
+
+RISKS
+------------------------------------------------------------
+  1. NEM 3.0 export credit may change
+  2. Utility escalation assumed 6%/yr
+  3. Roof shading not verified
+  4. Production degradation 0.5%/yr assumed
+
+============================================================
+  2. RECOMMENDED SYSTEM
+============================================================
+
+RATIONALE
+------------------------------------------------------------
+  Recommended scenario respects $5,000 budget limit (max
+  4 panels) while fitting 50m² roof capacity. Delivers
+  $1,321.46 annual savings with 8-year payback,
+  appropriate for budget-constrained household seeking
+  practical entry-level solar.
+
+SYSTEM SIZING
+------------------------------------------------------------
+  Panels:                   4
+  System size (kW DC):      1.62
+  Target offset:            8%
+  Confidence:               90%
+
+PRODUCTION & SAVINGS
+------------------------------------------------------------
+  Annual production:         2,696 kWh
+  Annual consumption used:   21,183 kWh
+  Annual savings:            $1,321
+
+FINANCIALS
+------------------------------------------------------------
+  CAPEX estimate:    $17,729
+  Payback period:    8.0 years
+
+CONSTRAINTS
+------------------------------------------------------------
+  Budget:                    $5,000
+  Max panels within budget:  4
+  Budget binding?            Yes
+
+ASSUMPTIONS
+------------------------------------------------------------
+  Panel Wp:          405 W
+  System derate:     0.8
+  Electricity rate:  $0.4951/kWh
+
+RISKS
+------------------------------------------------------------
+  1. NEM 3.0 export credit may change
+  2. Utility escalation assumed 6%/yr
+  3. Roof shading not verified
+
+============================================================
+  3. BATTERY RECOMMENDATION
+============================================================
+
+  Decision: ✘  PV ONLY — battery does not pay off at current rates
+
+BATTERY SPECS
+------------------------------------------------------------
+  Make / Model:       Tesla Powerwall 3
+  Capacity:           13.5 kWh
+  Gross cost:         $11,500
+  Net cost (30% ITC): $8,050
+
+FINANCIAL IMPACT OF ADDING BATTERY
+------------------------------------------------------------
+  Extra annual savings:      $3/yr
+  Grid import reduction:     7 kWh/yr
+  Self-consumption (w/ bat): 100.0%
+  Battery-only payback:      2648.0 years
+
+RATIONALE
+------------------------------------------------------------
+  Battery adds only $3.04/yr extra savings despite 97.5%
+  RTE and 13.5 kWh capacity, yielding 2648-year
+  incremental payback. Nighttime load is 26.23 kWh/day but
+  PV-only already achieves 100% self-consumption at 4
+  panels. TOOL DECISION: PV_ONLY.
+
+============================================================
+  4. PANEL BRAND RECOMMENDATION
+============================================================
+
+  Selection mode    : user_specified
+  Selected          : REC Group Alpha Pure
+
+  User specified REC Group Alpha Pure (405W, 22.6% eff, $2.85/Wp,
+  1.79m²/panel). Fits 20 panels max on 50m² roof in portrait orientation
+  (5×4). Selected per user preference from EQUIPMENT CATALOG.
+
+============================================================
+  EVIDENCE
+============================================================
+
+  1. [tool_results] Panels: 20 ... System size: 8.1 kW DC ... Annual savings: $4,521.41 ... Payback: 4 years
+  2. [tool_results] Panels: 4 ... System size: 1.62 kW DC ... Annual savings: $1,321.46 ... Payback: 8 years
+  3. [tool_results] Max by roof dimensions: 20 ... Best orientation: portrait → 5 columns × 4 rows = 20 panels max
+  4. [tool_results] Max by budget: 4 ... Budget (pre-ITC): 5000 USD
+  5. [tool_results] Annual consumption: 21,182.9 kWh ... Prod per panel/yr: 673.9 kWh
+  6. [catalog] REC Group Alpha Pure 22.6% $2.85/Wp 405Wp 1.79m²
+  7. [tool_results] TOOL DECISION: PV_ONLY ... Extra annual savings from battery: $3.04/yr
+  8. [features] Roof area (length × breadth): 50.00 m²
+  9. [tool_results] Mode: user_specified Selected: REC Group Alpha Pure
+  10. [tool_results] Average: $0.4951/kWh ... On-peak avg: $0.5561/kWh (4-9 PM)
+
+============================================================

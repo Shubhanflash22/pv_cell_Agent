@@ -1,0 +1,95 @@
+================================================================
+  FEATURE-ENGINEERED SUMMARY FOR LLM
+================================================================
+
+ELECTRICITY CONSUMPTION SUMMARY
+----------------------------------------
+  Annual household consumption    : 103,820.54 kWh
+  Avg daily consumption           : 56.09 kWh
+  Avg weekly load                 : 2.34 kW
+  Peak weekly max load            : 5.56 kW
+  95th-percentile weekly avg load  : 2.88 kW
+  Min weekly min load             : 0.42 kW
+  Load std deviation              : 0.30 kW
+  Coefficient of variation        : 0.1283
+  Interquartile range             : 0.37 kW
+  Peak-to-trough ratio            : 1.42
+  Winter / Summer ratio            : 0.92
+  Consumption trend slope          : 0.00 kW/week
+  Seasonal indices                : M1=1.01  M2=0.95  M3=0.89  M4=0.85  M5=0.87  M6=0.94  M7=1.10  M8=1.20  M9=1.17  M10=1.01  M11=0.97  M12=1.03
+  Year-over-year growth           : 2021_vs_2020: -0.9%, 2022_vs_2021: +4.0%, 2023_vs_2022: -3.2%, 2024_vs_2023: +1.6%, 2025_vs_2024: +3.9%, 2026_vs_2025: +4.8%
+  Moving-avg trend slope          : 0.0008 kW/week
+  Change points (2s)              : 12
+  Max single-week spike           : 5.56 kW
+  Weeks > 1.5x mean              : 2
+  Longest high-load streak        : 6 weeks
+
+SOLAR POTENTIAL SUMMARY
+----------------------------------------
+  Avg weekly irradiance           : 222.92 W/m2
+  Est daily peak sun hours        : 1.78 hrs
+  Est annual sunlight hours       : 649.70 hrs
+  Seasonal irradiance index       : Autumn=0.94  Spring=1.03  Summer=0.99  Winter=1.05
+  Irradiance variance             : 5,041.80
+  Temp <> irradiance correlation   : 0.5866
+  Weeks above PV optimal temp     : 4
+  Cloudy-week frequency           : 8.43%
+  Sunlight consistency (CV)       : 0.3185
+  Consumption <> irradiance corr   : -0.5399
+  Lag correlations                : lag0=-0.540, lag1=-0.493, lag2=-0.444, lag3=-0.398, lag4=-0.332
+
+HOUSEHOLD SUMMARY
+----------------------------------------
+  kWh per occupant (daily)        : 14.02 kWh
+  kWh per m2 (daily)              : 0.3739 kWh
+  Cost per occupant (daily)       : $4.91
+  Cost per m2 (daily)             : $0.1309
+  Effective cost per kWh           : $0.3500
+  Annual electricity spend         : $36,337.19
+  Projected 5-year cost            : $192,919.07
+
+PV SIZING & FINANCIAL ANALYSIS
+----------------------------------------
+  Est annual production / panel    : 207.90 kWh
+  Panels for 100% offset          : 500
+  Panels for 70% offset           : 350
+  Panels for 50% offset           : 250
+  Panel cost                      : $350 / panel
+  Installation fixed cost          : $4,000
+  Break-even                      : 10.31 years
+  NPV (10 yr)                     : $-943.86
+  IRR                             : 11.67%
+  ROI (25 yr)                     : 264.34%
+  Payback vs lifespan             : 10.3 yr payback / 25 yr life -> 14.7 yr profit
+
+GRID DEPENDENCY
+----------------------------------------
+  Nighttime load ratio             : 45.77%
+  % outside peak sun (10am-3pm)   : 82.39%
+  Base load                       : 1.83 kW (78.1% of mean)
+  Variable load                   : 0.51 kW
+
+RISK & SENSITIVITY
+----------------------------------------
+  ROI (baseline)                  : 264.34%
+  ROI (price +10%)                : 300.77%
+  ROI (price -10%)                : 227.91%
+  ROI (sun +10%)                  : 255.34%
+  ROI (sun -10%)                  : 191.89%
+  Consumption volatility (CV)     : 0.1283
+  Sunlight volatility (CV)        : 0.3185
+  Combined risk score             : 0.2234
+
+EV & BUDGET SUMMARY
+----------------------------------------
+  Number of EVs                   : 0
+  Est EV annual charging load     : 0.00 kWh
+  Total annual kWh (house + EV)   : 103,820.54 kWh
+  PV installation budget          : $25000
+  Max panels within budget        : 60
+  Total system cost (at budget)   : $25000
+  Annual production (at budget)   : 12,474.00 kWh
+  Annual savings (at budget)      : $4,365.90
+  Break-even (at budget)          : 5.73 years
+
+================================================================

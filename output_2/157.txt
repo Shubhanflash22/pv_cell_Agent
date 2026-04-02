@@ -1,0 +1,2 @@
+ERROR for Oceanside_157:
+429 Client Error: Too Many Requests for url: https://archive-api.open-meteo.com/v1/archive?latitude=33.1959&longitude=-117.3795&start_date=2021-03-02&end_date=2026-03-02&daily=temperature_2m_max%2Ctemperature_2m_min%2Cshortwave_radiation_sum&hourly=cloud_cover%2Cshortwave_radiation&timezone=auto

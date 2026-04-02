@@ -1,0 +1,21 @@
+scenario_id,scenario_description,latitude,longitude,num_evs,num_people,num_daytime_occupants,budget_usd,roof_length_m,roof_breadth_m,panel_brand
+1,low_budget_high_roof,32.8328,-117.2713,0,2,1,8000,18.0,12.0,
+2,high_budget_low_roof,32.8328,-117.2713,0,2,1,80000,4.0,3.0,
+3,many_occupants_low_budget,32.8328,-117.2713,0,6,4,12000,8.0,6.25,
+4,few_occupants_many_evs_high_budget,32.8328,-117.2713,3,1,0,60000,10.0,8.0,
+5,massive_roof_high_ev,32.8328,-117.2713,4,4,2,70000,25.0,18.0,
+6,tiny_roof_minimal_load,32.8328,-117.2713,0,1,0,15000,3.0,2.5,
+7,high_consumption_tight_budget,32.8328,-117.2713,4,8,5,15000,10.0,8.0,
+8,premium_brand_low_budget,32.8328,-117.2713,0,2,1,18000,8.0,6.25,Maxeon Solar
+9,massive_roof_minimal_budget,32.8328,-117.2713,0,3,1,8000,20.0,15.0,
+10,high_ev_minimal_roof,32.8328,-117.2713,5,2,1,50000,5.0,4.0,
+11,low_budget_high_roof,33.1959,-117.3795,0,2,1,9000,16.0,11.0,
+12,high_budget_low_roof,33.1959,-117.3795,0,2,1,75000,4.5,3.5,
+13,many_occupants_low_budget,33.1959,-117.3795,0,5,3,13000,8.0,6.25,
+14,few_occupants_many_evs_high_budget,33.1959,-117.3795,2,2,0,55000,10.0,8.0,
+15,massive_roof_high_ev,33.1959,-117.3795,3,4,2,65000,22.0,16.0,
+16,tiny_roof_minimal_load,33.1959,-117.3795,0,1,0,14000,3.5,2.2,
+17,high_consumption_tight_budget,33.1959,-117.3795,3,7,4,16000,10.0,8.0,
+18,premium_brand_low_budget,33.1959,-117.3795,0,2,1,20000,8.0,6.25,Aiko Solar
+19,massive_roof_minimal_budget,33.1959,-117.3795,0,3,1,9000,18.0,14.0,
+20,high_ev_minimal_roof,33.1959,-117.3795,4,2,1,45000,5.5,4.5,
